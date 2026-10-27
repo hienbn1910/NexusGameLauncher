@@ -7,6 +7,11 @@ declare global {
     genre?: string
   }
 
+  // genre = '' để xoá thể loại
+  interface GameUpdateInput extends Partial<GameInput> {
+    is_favorite?: boolean
+  }
+
   interface Game {
     id: string
     title: string
@@ -24,7 +29,7 @@ declare global {
       getAll: () => Promise<Game[]>
       getById: (id: string) => Promise<Game | undefined>
       create: (input: GameInput) => Promise<Game>
-      update: (id: string, input: Partial<GameInput>) => Promise<Game | undefined>
+      update: (id: string, input: GameUpdateInput) => Promise<Game | undefined>
       delete: (id: string) => Promise<boolean>
       selectExe: () => Promise<string | null>
     }

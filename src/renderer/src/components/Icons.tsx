@@ -126,6 +126,29 @@ export const FolderIcon = (p: IconProps): React.JSX.Element => (
   </Base>
 )
 
+export const PencilIcon = (p: IconProps): React.JSX.Element => (
+  <Base {...p}>
+    <path d="M4 20h4L19 9l-4-4L4 16v4Z" />
+    <path d="m13.5 6.5 4 4" />
+  </Base>
+)
+
+export const TrashIcon = (p: IconProps): React.JSX.Element => (
+  <Base {...p}>
+    <path d="M4 7h16" />
+    <path d="M10 11v6" />
+    <path d="M14 11v6" />
+    <path d="M6 7l1 13h10l1-13" />
+    <path d="M9 7V4h6v3" />
+  </Base>
+)
+
+export const SaveIcon = (p: IconProps): React.JSX.Element => (
+  <Base {...p}>
+    <path d="m5 12 5 5L20 7" />
+  </Base>
+)
+
 export const HelpIcon = (p: IconProps): React.JSX.Element => (
   <Base {...p}>
     <circle cx="12" cy="12" r="9" />

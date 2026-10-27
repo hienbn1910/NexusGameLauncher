@@ -1,16 +1,49 @@
 import { formatPlaytime, gameGradient, gameInitials } from '../utils/gameArt'
-import { ClockIcon, PlayIcon } from './Icons'
+import { ClockIcon, PencilIcon, PlayIcon, StarIcon } from './Icons'
 
 interface GameCardProps {
   game: Game
   onSelect: (game: Game) => void
+  onEdit: (game: Game) => void
+  onToggleFavorite: (game: Game) => void
 }
 
-export function GameCard({ game, onSelect }: GameCardProps): React.JSX.Element {
+export function GameCard({
+  game,
+  onSelect,
+  onEdit,
+  onToggleFavorite
+}: GameCardProps): React.JSX.Element {
+  const isFavorite = game.is_favorite === 1
+
   return (
-    <button className="game-card" onClick={() => onSelect(game)}>
+    <div className="game-card" onClick={() => onSelect(game)}>
       <div className="game-card-art" style={{ background: gameGradient(game.title) }}>
         <span className="game-card-initials">{gameInitials(game.title)}</span>
+
+        <div className="game-card-actions">
+          <button
+            className={`card-action ${isFavorite ? 'favorite' : ''}`}
+            title={isFavorite ? 'Bỏ yêu thích' : 'Yêu thích'}
+            onClick={(e) => {
+              e.stopPropagation()
+              onToggleFavorite(game)
+            }}
+          >
+            <StarIcon width={15} height={15} />
+          </button>
+          <button
+            className="card-action"
+            title="Sửa game"
+            onClick={(e) => {
+              e.stopPropagation()
+              onEdit(game)
+            }}
+          >
+            <PencilIcon width={15} height={15} />
+          </button>
+        </div>
+
         <span className="game-card-play">
           <PlayIcon width={20} height={20} />
         </span>
@@ -23,6 +56,6 @@ export function GameCard({ game, onSelect }: GameCardProps): React.JSX.Element {
           {game.genre && <span className="tag">{game.genre}</span>}
         </span>
       </div>
-    </button>
+    </div>
   )
 }

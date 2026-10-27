@@ -25,6 +25,11 @@ export interface CreateGameInput {
   genre?: string
 }
 
+// Kiểu dữ liệu khi sửa game (genre = '' nghĩa là xoá thể loại)
+export interface UpdateGameInput extends Partial<CreateGameInput> {
+  is_favorite?: boolean
+}
+
 // better-sqlite3 dùng prepared statement
 // Giống repository pattern mà bạn quen trong NestJS
 
@@ -55,7 +60,7 @@ export function createGame(input: CreateGameInput): Game {
   return getGameById(id)!
 }
 
-export function updateGame(id: string, input: Partial<CreateGameInput>): Game | undefined {
+export function updateGame(id: string, input: UpdateGameInput): Game | undefined {
   // Lấy game hiện tại
   const existing = getGameById(id)
   if (!existing) return undefined
@@ -64,14 +69,15 @@ export function updateGame(id: string, input: Partial<CreateGameInput>): Game | 
   const now = new Date().toISOString()
   const stmt = db.prepare(`
     UPDATE games
-    SET title = ?, exe_path = ?, genre = ?, updated_at = ?
+    SET title = ?, exe_path = ?, genre = ?, is_favorite = ?, updated_at = ?
     WHERE id = ?
   `)
 
   stmt.run(
     input.title ?? existing.title,
     input.exe_path ?? existing.exe_path,
-    input.genre ?? existing.genre,
+    input.genre !== undefined ? input.genre || null : existing.genre,
+    input.is_favorite !== undefined ? Number(input.is_favorite) : existing.is_favorite,
     now,
     id
   )

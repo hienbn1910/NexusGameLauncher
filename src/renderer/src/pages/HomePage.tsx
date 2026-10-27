@@ -24,6 +24,8 @@ interface HomePageProps {
   onShuffle: () => void
   onSelectGame: (game: Game) => void
   onAddGame: () => void
+  onEditGame: (game: Game) => void
+  onToggleFavorite: (game: Game) => void
 }
 
 export function HomePage({
@@ -31,7 +33,9 @@ export function HomePage({
   featured,
   onShuffle,
   onSelectGame,
-  onAddGame
+  onAddGame,
+  onEditGame,
+  onToggleFavorite
 }: HomePageProps): React.JSX.Element {
   const [tab, setTab] = useState<TabKey>('recent')
 
@@ -65,7 +69,7 @@ export function HomePage({
 
   return (
     <div className="home">
-      {featured && <FeaturedBanner game={featured} onPlay={onSelectGame} />}
+      {featured && <FeaturedBanner game={featured} onPlay={onSelectGame} onEdit={onEditGame} />}
 
       <div className="tab-bar">
         <div className="tabs">
@@ -95,7 +99,13 @@ export function HomePage({
       {visibleGames.length > 0 ? (
         <div className="game-grid">
           {visibleGames.map((game) => (
-            <GameCard key={game.id} game={game} onSelect={onSelectGame} />
+            <GameCard
+              key={game.id}
+              game={game}
+              onSelect={onSelectGame}
+              onEdit={onEditGame}
+              onToggleFavorite={onToggleFavorite}
+            />
           ))}
         </div>
       ) : (
