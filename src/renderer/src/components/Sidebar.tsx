@@ -6,6 +6,7 @@ import {
   GridIcon,
   HelpIcon,
   HomeIcon,
+  PlusIcon,
   UsersIcon,
   type IconComponent
 } from './Icons'
@@ -25,6 +26,7 @@ interface SidebarProps {
   games: Game[]
   selectedGameId: string | null
   onSelectGame: (game: Game) => void
+  onAddGame: () => void
 }
 
 export function Sidebar({
@@ -32,7 +34,8 @@ export function Sidebar({
   onNavigate,
   games,
   selectedGameId,
-  onSelectGame
+  onSelectGame,
+  onAddGame
 }: SidebarProps): React.JSX.Element {
   const [filter, setFilter] = useState('')
 
@@ -74,6 +77,9 @@ export function Sidebar({
         <div className="library-header">
           <span>Thư viện</span>
           <span className="library-count">{games.length}</span>
+          <button className="library-add" onClick={onAddGame} title="Thêm game">
+            <PlusIcon width={14} height={14} />
+          </button>
         </div>
         <input
           className="library-filter"

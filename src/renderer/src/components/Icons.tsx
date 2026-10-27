@@ -106,6 +106,26 @@ export const UsersIcon = (p: IconProps): React.JSX.Element => (
   </Base>
 )
 
+export const PlusIcon = (p: IconProps): React.JSX.Element => (
+  <Base {...p}>
+    <path d="M12 5v14" />
+    <path d="M5 12h14" />
+  </Base>
+)
+
+export const XIcon = (p: IconProps): React.JSX.Element => (
+  <Base {...p}>
+    <path d="M6 6l12 12" />
+    <path d="M18 6 6 18" />
+  </Base>
+)
+
+export const FolderIcon = (p: IconProps): React.JSX.Element => (
+  <Base {...p}>
+    <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" />
+  </Base>
+)
+
 export const HelpIcon = (p: IconProps): React.JSX.Element => (
   <Base {...p}>
     <circle cx="12" cy="12" r="9" />

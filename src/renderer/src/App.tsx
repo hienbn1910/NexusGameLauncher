@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { AddGameModal } from './components/AddGameModal'
 import { Sidebar, type PageKey } from './components/Sidebar'
 import { StatusBar } from './components/StatusBar'
 import { TopBar } from './components/TopBar'
@@ -16,6 +17,7 @@ function App(): React.JSX.Element {
   const [page, setPage] = useState<PageKey>('home')
   const [search, setSearch] = useState('')
   const [featuredId, setFeaturedId] = useState<string | null>(null)
+  const [showAddGame, setShowAddGame] = useState(false)
 
   useEffect(() => {
     window.electronAPI.games.getAll().then((list) => {
@@ -48,6 +50,15 @@ function App(): React.JSX.Element {
     setPage('home')
   }
 
+  const closeAddGame = useCallback(() => setShowAddGame(false), [])
+
+  const handleGameCreated = (game: Game): void => {
+    // Giữ danh sách sắp xếp theo tên giống query trong DB
+    setGames((prev) => [...prev, game].sort((a, b) => a.title.localeCompare(b.title)))
+    setShowAddGame(false)
+    selectGame(game)
+  }
+
   return (
     <div className="app-shell">
       <Sidebar
@@ -56,6 +67,7 @@ function App(): React.JSX.Element {
         games={games}
         selectedGameId={featuredId}
         onSelectGame={selectGame}
+        onAddGame={() => setShowAddGame(true)}
       />
 
       <main className="main">
@@ -67,6 +79,7 @@ function App(): React.JSX.Element {
               featured={search ? null : featured}
               onShuffle={shuffleFeatured}
               onSelectGame={selectGame}
+              onAddGame={() => setShowAddGame(true)}
             />
           ) : (
             <div className="empty-state">
@@ -78,6 +91,8 @@ function App(): React.JSX.Element {
       </main>
 
       <StatusBar gameCount={games.length} />
+
+      {showAddGame && <AddGameModal onClose={closeAddGame} onCreated={handleGameCreated} />}
     </div>
   )
 }

@@ -4,6 +4,7 @@ import { GameCard } from '../components/GameCard'
 import {
   ClockIcon,
   LayersIcon,
+  PlusIcon,
   ShuffleIcon,
   StarIcon,
   type IconComponent
@@ -22,13 +23,15 @@ interface HomePageProps {
   featured: Game | null
   onShuffle: () => void
   onSelectGame: (game: Game) => void
+  onAddGame: () => void
 }
 
 export function HomePage({
   games,
   featured,
   onShuffle,
-  onSelectGame
+  onSelectGame,
+  onAddGame
 }: HomePageProps): React.JSX.Element {
   const [tab, setTab] = useState<TabKey>('recent')
 
@@ -53,6 +56,9 @@ export function HomePage({
         <LayersIcon width={48} height={48} />
         <h2>Chưa có game nào</h2>
         <p>Thêm game vào thư viện để bắt đầu.</p>
+        <button className="btn btn-primary" onClick={onAddGame}>
+          <PlusIcon width={16} height={16} /> Thêm game
+        </button>
       </div>
     )
   }

@@ -26,6 +26,7 @@ declare global {
       create: (input: GameInput) => Promise<Game>
       update: (id: string, input: Partial<GameInput>) => Promise<Game | undefined>
       delete: (id: string) => Promise<boolean>
+      selectExe: () => Promise<string | null>
     }
   }
 
