@@ -69,7 +69,7 @@ export function HomePage({
 
   return (
     <div className="home">
-      {featured && <FeaturedBanner game={featured} onPlay={onSelectGame} onEdit={onEditGame} />}
+      {featured && <FeaturedBanner game={featured} onEdit={onEditGame} />}
 
       <div className="tab-bar">
         <div className="tabs">

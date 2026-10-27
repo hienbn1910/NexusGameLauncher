@@ -1,3 +1,4 @@
+import { useLauncher } from '../hooks/useLauncher'
 import { formatPlaytime, gameGradient, gameInitials } from '../utils/gameArt'
 import { ClockIcon, PencilIcon, PlayIcon, StarIcon } from './Icons'
 
@@ -15,9 +16,17 @@ export function GameCard({
   onToggleFavorite
 }: GameCardProps): React.JSX.Element {
   const isFavorite = game.is_favorite === 1
+  const { runningIds, launchingId, launch } = useLauncher()
+  const running = runningIds.has(game.id)
+  const launching = launchingId === game.id
 
   return (
-    <div className="game-card" onClick={() => onSelect(game)}>
+    <div className={`game-card ${running ? 'running' : ''}`} onClick={() => onSelect(game)}>
+      {running && (
+        <span className="running-badge">
+          <span className="pulse-dot" /> Đang chạy
+        </span>
+      )}
       <div className="game-card-art" style={{ background: gameGradient(game.title) }}>
         <span className="game-card-initials">{gameInitials(game.title)}</span>
 
@@ -44,9 +53,19 @@ export function GameCard({
           </button>
         </div>
 
-        <span className="game-card-play">
-          <PlayIcon width={20} height={20} />
-        </span>
+        {!running && (
+          <button
+            className={`game-card-play ${launching ? 'launching' : ''}`}
+            title="Chơi"
+            disabled={launching}
+            onClick={(e) => {
+              e.stopPropagation()
+              launch(game)
+            }}
+          >
+            <PlayIcon width={20} height={20} />
+          </button>
+        )}
       </div>
       <div className="game-card-body">
         <span className="game-card-title">{game.title}</span>

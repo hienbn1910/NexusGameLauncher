@@ -10,10 +10,22 @@ interface GameFormModalProps {
   onDeleted?: (id: string) => void
 }
 
+type LaunchMode = 'file' | 'steam'
+
 // Lấy tên file (bỏ đuôi) để gợi ý tên game
 function fileNameWithoutExt(path: string): string {
   const name = path.split(/[\\/]/).pop() ?? ''
   return name.replace(/\.[^.]+$/, '')
+}
+
+const isSteamUri = (value: string): boolean => /^steam:\/\//i.test(value.trim())
+
+// Chấp nhận App ID (vd 730) hoặc URI đầy đủ (vd steam://rungameid/730)
+function toSteamUri(value: string): string | null {
+  const v = value.trim()
+  if (/^\d+$/.test(v)) return `steam://rungameid/${v}`
+  if (isSteamUri(v)) return v
+  return null
 }
 
 export function GameFormModal({
@@ -24,7 +36,10 @@ export function GameFormModal({
 }: GameFormModalProps): React.JSX.Element {
   const isEdit = !!game
   const [title, setTitle] = useState(game?.title ?? '')
-  const [exePath, setExePath] = useState(game?.exe_path ?? '')
+  const initialPath = game?.exe_path ?? ''
+  const [mode, setMode] = useState<LaunchMode>(isSteamUri(initialPath) ? 'steam' : 'file')
+  const [exePath, setExePath] = useState(isSteamUri(initialPath) ? '' : initialPath)
+  const [steamInput, setSteamInput] = useState(isSteamUri(initialPath) ? initialPath : '')
   const [genre, setGenre] = useState(game?.genre ?? '')
   const [favorite, setFavorite] = useState(game?.is_favorite === 1)
   const [submitting, setSubmitting] = useState(false)
@@ -53,7 +68,15 @@ export function GameFormModal({
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault()
     if (!title.trim()) return setError('Vui lòng nhập tên game')
-    if (!exePath) return setError('Vui lòng chọn file chạy game')
+
+    let launchPath = exePath
+    if (mode === 'steam') {
+      const uri = toSteamUri(steamInput)
+      if (!uri) return setError('Nhập Steam App ID (vd: 730) hoặc URI dạng steam://...')
+      launchPath = uri
+    } else if (!exePath) {
+      return setError('Vui lòng chọn file chạy game')
+    }
 
     setSubmitting(true)
     try {
@@ -61,14 +84,14 @@ export function GameFormModal({
       if (game) {
         saved = await window.electronAPI.games.update(game.id, {
           title: title.trim(),
-          exe_path: exePath,
+          exe_path: launchPath,
           genre,
           is_favorite: favorite
         })
       } else {
         saved = await window.electronAPI.games.create({
           title: title.trim(),
-          exe_path: exePath,
+          exe_path: launchPath,
           genre: genre || undefined
         })
         if (favorite) {
@@ -154,16 +177,50 @@ export function GameFormModal({
               </label>
 
               <div className="field">
-                <span className="field-label">File chạy game</span>
-                <div className="file-picker">
-                  <span className={`file-path ${exePath ? '' : 'placeholder'}`} title={exePath}>
-                    {exePath || 'Chưa chọn file'}
-                  </span>
-                  <button type="button" className="btn btn-secondary" onClick={pickExe}>
-                    <FolderIcon width={16} height={16} />
-                    {exePath ? 'Đổi file' : 'Chọn file'}
-                  </button>
+                <div className="field-label-row">
+                  <span className="field-label">Cách mở game</span>
+                  <div className="segmented">
+                    <button
+                      type="button"
+                      className={mode === 'file' ? 'active' : ''}
+                      onClick={() => setMode('file')}
+                    >
+                      File trên máy
+                    </button>
+                    <button
+                      type="button"
+                      className={mode === 'steam' ? 'active' : ''}
+                      onClick={() => setMode('steam')}
+                    >
+                      Steam
+                    </button>
+                  </div>
                 </div>
+
+                {mode === 'file' ? (
+                  <div className="file-picker">
+                    <span className={`file-path ${exePath ? '' : 'placeholder'}`} title={exePath}>
+                      {exePath || 'Chưa chọn file'}
+                    </span>
+                    <button type="button" className="btn btn-secondary" onClick={pickExe}>
+                      <FolderIcon width={16} height={16} />
+                      {exePath ? 'Đổi file' : 'Chọn file'}
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <input
+                      className="input"
+                      placeholder="App ID (vd: 730) hoặc steam://rungameid/730"
+                      value={steamInput}
+                      onChange={(e) => setSteamInput(e.target.value)}
+                    />
+                    <span className="field-hint">
+                      App ID nằm trong link trang Steam của game: store.steampowered.com/app/
+                      <strong>730</strong>/...
+                    </span>
+                  </>
+                )}
               </div>
 
               <label className="field">

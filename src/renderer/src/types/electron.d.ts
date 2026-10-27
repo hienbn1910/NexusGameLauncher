@@ -24,6 +24,14 @@ declare global {
     last_played: string | null
   }
 
+  type LaunchResult = { ok: true; game: Game } | { ok: false; error: string }
+
+  interface GameSessionEvent {
+    gameId: string
+    running: boolean
+    game?: Game
+  }
+
   interface ElectronAPI {
     games: {
       getAll: () => Promise<Game[]>
@@ -32,6 +40,9 @@ declare global {
       update: (id: string, input: GameUpdateInput) => Promise<Game | undefined>
       delete: (id: string) => Promise<boolean>
       selectExe: () => Promise<string | null>
+      launch: (id: string) => Promise<LaunchResult>
+      getRunning: () => Promise<string[]>
+      onSessionChanged: (callback: (event: GameSessionEvent) => void) => () => void
     }
   }
 

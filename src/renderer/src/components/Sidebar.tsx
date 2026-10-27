@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useLauncher } from '../hooks/useLauncher'
 import { gameGradient, gameInitials } from '../utils/gameArt'
 import {
   DownloadIcon,
@@ -38,6 +39,7 @@ export function Sidebar({
   onAddGame
 }: SidebarProps): React.JSX.Element {
   const [filter, setFilter] = useState('')
+  const { runningIds } = useLauncher()
 
   const filteredGames = useMemo(() => {
     const keyword = filter.trim().toLowerCase()
@@ -98,6 +100,7 @@ export function Sidebar({
                   {gameInitials(game.title)}
                 </span>
                 <span className="library-title">{game.title}</span>
+                {runningIds.has(game.id) && <span className="pulse-dot" title="Đang chạy" />}
               </button>
             </li>
           ))}

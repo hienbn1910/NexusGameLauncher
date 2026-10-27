@@ -1,5 +1,6 @@
 import { BrowserWindow, dialog, ipcMain } from 'electron'
 import * as gameService from '../services/game.service'
+import * as launcherService from '../services/launcher.service'
 
 export function registerGameHandlers() {
   // Mở dialog chọn file thực thi, trả về đường dẫn hoặc null nếu người dùng huỷ
@@ -40,5 +41,13 @@ export function registerGameHandlers() {
 
   ipcMain.handle('games:delete', (_event, id: string) => {
     return gameService.deleteGame(id)
+  })
+
+  ipcMain.handle('games:launch', (_event, id: string) => {
+    return launcherService.launchGame(id)
+  })
+
+  ipcMain.handle('games:getRunning', () => {
+    return launcherService.getRunningGameIds()
   })
 }

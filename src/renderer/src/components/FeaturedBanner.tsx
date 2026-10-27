@@ -1,13 +1,13 @@
 import { formatPlaytime, gameAccent, gameGradient, gameInitials } from '../utils/gameArt'
-import { ClockIcon, PencilIcon, PlayIcon, StarIcon } from './Icons'
+import { ClockIcon, PencilIcon, StarIcon } from './Icons'
+import { PlayButton } from './PlayButton'
 
 interface FeaturedBannerProps {
   game: Game
-  onPlay: (game: Game) => void
   onEdit: (game: Game) => void
 }
 
-export function FeaturedBanner({ game, onPlay, onEdit }: FeaturedBannerProps): React.JSX.Element {
+export function FeaturedBanner({ game, onEdit }: FeaturedBannerProps): React.JSX.Element {
   return (
     <section className="featured" style={{ background: gameGradient(game.title) }}>
       <span className="featured-watermark">{gameInitials(game.title)}</span>
@@ -20,6 +20,7 @@ export function FeaturedBanner({ game, onPlay, onEdit }: FeaturedBannerProps): R
         </span>
         <h2 className="featured-title">{game.title}</h2>
         <div className="featured-meta">
+          {game.source === 'steam' && <span className="tag">Steam</span>}
           {game.genre && <span className="tag">{game.genre}</span>}
           <span>
             <ClockIcon width={14} height={14} /> {formatPlaytime(game.total_playtime)}
@@ -29,9 +30,7 @@ export function FeaturedBanner({ game, onPlay, onEdit }: FeaturedBannerProps): R
           )}
         </div>
         <div className="featured-actions">
-          <button className="btn btn-primary" onClick={() => onPlay(game)}>
-            <PlayIcon width={16} height={16} /> Chơi ngay
-          </button>
+          <PlayButton game={game} />
           <button className="btn btn-glass" onClick={() => onEdit(game)}>
             <PencilIcon width={16} height={16} /> Sửa
           </button>

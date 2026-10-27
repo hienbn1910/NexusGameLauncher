@@ -2,7 +2,9 @@ import { useCallback, useEffect, useState } from 'react'
 import { GameFormModal } from './components/GameFormModal'
 import { Sidebar, type PageKey } from './components/Sidebar'
 import { StatusBar } from './components/StatusBar'
+import { Toast, type ToastMessage } from './components/Toast'
 import { TopBar } from './components/TopBar'
+import { LauncherContext } from './hooks/useLauncher'
 import { CataloguePage } from './pages/CataloguePage'
 import { HomePage } from './pages/HomePage'
 
@@ -24,6 +26,9 @@ function App(): React.JSX.Element {
   const [search, setSearch] = useState('')
   const [featuredId, setFeaturedId] = useState<string | null>(null)
   const [form, setForm] = useState<FormState>(null)
+  const [runningIds, setRunningIds] = useState<Set<string>>(new Set())
+  const [launchingId, setLaunchingId] = useState<string | null>(null)
+  const [toast, setToast] = useState<ToastMessage | null>(null)
 
   useEffect(() => {
     window.electronAPI.games.getAll().then((list) => {
@@ -34,7 +39,43 @@ function App(): React.JSX.Element {
         .sort((a, b) => (b.last_played ?? '').localeCompare(a.last_played ?? ''))[0]
       setFeaturedId((recent ?? list[0])?.id ?? null)
     })
+    // Lấy lại danh sách game đang chạy (vd sau khi reload cửa sổ)
+    window.electronAPI.games.getRunning().then((ids) => setRunningIds(new Set(ids)))
   }, [])
+
+  // Nhận sự kiện game bắt đầu/thoát từ main process
+  useEffect(() => {
+    return window.electronAPI.games.onSessionChanged(({ gameId, running, game }) => {
+      setRunningIds((prev) => {
+        const next = new Set(prev)
+        if (running) next.add(gameId)
+        else next.delete(gameId)
+        return next
+      })
+      if (game) setGames((prev) => prev.map((g) => (g.id === game.id ? game : g)))
+    })
+  }, [])
+
+  const showToast = (type: ToastMessage['type'], text: string): void => {
+    setToast({ id: Date.now(), type, text })
+  }
+  const dismissToast = useCallback(() => setToast(null), [])
+
+  const launch = async (game: Game): Promise<void> => {
+    if (launchingId) return
+    setLaunchingId(game.id)
+    try {
+      const result = await window.electronAPI.games.launch(game.id)
+      if (result.ok) {
+        replaceGame(result.game)
+        if (result.game.source === 'steam') showToast('info', `Đang mở ${game.title} qua Steam...`)
+      } else {
+        showToast('error', result.error)
+      }
+    } finally {
+      setLaunchingId(null)
+    }
+  }
 
   const featured = games.find((g) => g.id === featuredId) ?? null
 
@@ -88,69 +129,75 @@ function App(): React.JSX.Element {
 
   const openAddForm = (): void => setForm('new')
 
+  const runningTitles = games.filter((g) => runningIds.has(g.id)).map((g) => g.title)
+
   return (
-    <div className="app-shell">
-      <Sidebar
-        page={page}
-        onNavigate={setPage}
-        games={games}
-        selectedGameId={featuredId}
-        onSelectGame={selectGame}
-        onAddGame={openAddForm}
-      />
-
-      <main className="main">
-        <TopBar
-          title={PAGE_TITLES[page]}
-          search={search}
-          onSearchChange={handleSearchChange}
-          showSearch={page !== 'catalogue'}
+    <LauncherContext.Provider value={{ runningIds, launchingId, launch }}>
+      <div className="app-shell">
+        <Sidebar
+          page={page}
+          onNavigate={setPage}
+          games={games}
+          selectedGameId={featuredId}
+          onSelectGame={selectGame}
+          onAddGame={openAddForm}
         />
-        <div className="content">
-          {page === 'home' && (
-            <HomePage
-              games={games}
-              featured={featured}
-              onShuffle={shuffleFeatured}
-              onSelectGame={selectGame}
-              onAddGame={openAddForm}
-              onEditGame={setForm}
-              onToggleFavorite={toggleFavorite}
-            />
-          )}
-          {page === 'catalogue' && (
-            <CataloguePage
-              games={games}
-              search={search}
-              onSearchChange={setSearch}
-              onSelectGame={selectGame}
-              onAddGame={openAddForm}
-              onEditGame={setForm}
-              onToggleFavorite={toggleFavorite}
-            />
-          )}
-          {(page === 'downloads' || page === 'settings') && (
-            <div className="empty-state">
-              <h2>{PAGE_TITLES[page]}</h2>
-              <p>Trang này đang được phát triển.</p>
-            </div>
-          )}
-        </div>
-      </main>
 
-      <StatusBar gameCount={games.length} />
+        <main className="main">
+          <TopBar
+            title={PAGE_TITLES[page]}
+            search={search}
+            onSearchChange={handleSearchChange}
+            showSearch={page !== 'catalogue'}
+          />
+          <div className="content">
+            {page === 'home' && (
+              <HomePage
+                games={games}
+                featured={featured}
+                onShuffle={shuffleFeatured}
+                onSelectGame={selectGame}
+                onAddGame={openAddForm}
+                onEditGame={setForm}
+                onToggleFavorite={toggleFavorite}
+              />
+            )}
+            {page === 'catalogue' && (
+              <CataloguePage
+                games={games}
+                search={search}
+                onSearchChange={setSearch}
+                onSelectGame={selectGame}
+                onAddGame={openAddForm}
+                onEditGame={setForm}
+                onToggleFavorite={toggleFavorite}
+              />
+            )}
+            {(page === 'downloads' || page === 'settings') && (
+              <div className="empty-state">
+                <h2>{PAGE_TITLES[page]}</h2>
+                <p>Trang này đang được phát triển.</p>
+              </div>
+            )}
+          </div>
+        </main>
 
-      {form && (
-        <GameFormModal
-          // key để reset state khi chuyển từ sửa game này sang game khác
-          key={form === 'new' ? 'new' : form.id}
-          game={form === 'new' ? undefined : form}
-          onClose={closeForm}
-          onSaved={handleSaved}
-          onDeleted={handleDeleted}
-        />
-      )}
-    </div>
+        <StatusBar gameCount={games.length} runningTitles={runningTitles} />
+
+        {form && (
+          <GameFormModal
+            // key để reset state khi chuyển từ sửa game này sang game khác
+            key={form === 'new' ? 'new' : form.id}
+            game={form === 'new' ? undefined : form}
+            onClose={closeForm}
+            onSaved={handleSaved}
+            onDeleted={handleDeleted}
+          />
+        )}
+
+        {toast && <Toast key={toast.id} toast={toast} onDismiss={dismissToast} />}
+      </div>
+    </LauncherContext.Provider>
   )
 }
 

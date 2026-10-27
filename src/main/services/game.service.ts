@@ -45,17 +45,24 @@ export function getGameById(id: string): Game | undefined {
   return stmt.get(id) as Game | undefined
 }
 
+// Suy ra nguồn game từ đường dẫn: steam://rungameid/<appId> => Steam, còn lại là game tự thêm
+function sourceFromPath(exePath: string): { source: string; source_id: string | null } {
+  const match = exePath.match(/^steam:\/\/(?:rungameid|run)\/(\d+)/i)
+  return match ? { source: 'steam', source_id: match[1] } : { source: 'manual', source_id: null }
+}
+
 export function createGame(input: CreateGameInput): Game {
   const id = randomUUID()
   const now = new Date().toISOString()
+  const { source, source_id } = sourceFromPath(input.exe_path)
 
   const db = getDb()
   const stmt = db.prepare(`
-    INSERT INTO games (id, title, exe_path, genre, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?)
+    INSERT INTO games (id, title, exe_path, source, source_id, genre, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `)
 
-  stmt.run(id, input.title, input.exe_path, input.genre ?? null, now, now)
+  stmt.run(id, input.title, input.exe_path, source, source_id, input.genre ?? null, now, now)
 
   return getGameById(id)!
 }
@@ -67,21 +74,38 @@ export function updateGame(id: string, input: UpdateGameInput): Game | undefined
 
   const db = getDb()
   const now = new Date().toISOString()
+  const exePath = input.exe_path ?? existing.exe_path
+  const { source, source_id } = sourceFromPath(exePath)
   const stmt = db.prepare(`
     UPDATE games
-    SET title = ?, exe_path = ?, genre = ?, is_favorite = ?, updated_at = ?
+    SET title = ?, exe_path = ?, source = ?, source_id = ?, genre = ?, is_favorite = ?, updated_at = ?
     WHERE id = ?
   `)
 
   stmt.run(
     input.title ?? existing.title,
-    input.exe_path ?? existing.exe_path,
+    exePath,
+    source,
+    source_id,
     input.genre !== undefined ? input.genre || null : existing.genre,
     input.is_favorite !== undefined ? Number(input.is_favorite) : existing.is_favorite,
     now,
     id
   )
 
+  return getGameById(id)
+}
+
+// Cộng thêm giờ chơi và cập nhật lần chơi cuối (hours = 0 khi chỉ muốn đánh dấu vừa chơi)
+export function recordPlaySession(id: string, hours: number): Game | undefined {
+  const db = getDb()
+  const now = new Date().toISOString()
+  const stmt = db.prepare(`
+    UPDATE games
+    SET total_playtime = total_playtime + ?, last_played = ?, updated_at = ?
+    WHERE id = ?
+  `)
+  stmt.run(hours, now, now, id)
   return getGameById(id)
 }
 
