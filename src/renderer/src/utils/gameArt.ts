@@ -26,6 +26,13 @@ export function coverUrl(game: Pick<Game, 'cover_path'>): string | null {
   return `game-media://cover/${encodeURIComponent(fileName)}`
 }
 
+// Icon của file exe game; null với game Steam (không có file exe để đọc icon)
+// Thêm exe_path vào query để icon tự cập nhật khi đổi file chạy game
+export function iconUrl(game: Pick<Game, 'id' | 'exe_path'>): string | null {
+  if (/^steam:\/\//i.test(game.exe_path.trim())) return null
+  return `game-media://icon/${game.id}?v=${encodeURIComponent(game.exe_path)}`
+}
+
 export function gameInitials(title: string): string {
   const words = title.trim().split(/\s+/).filter(Boolean)
   if (words.length === 0) return '?'

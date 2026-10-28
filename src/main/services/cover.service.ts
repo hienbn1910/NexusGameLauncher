@@ -1,4 +1,4 @@
-import { mkdirSync } from 'fs'
+import { existsSync, mkdirSync } from 'fs'
 import { copyFile, readFile, rm, writeFile } from 'fs/promises'
 import { basename, extname, join } from 'path'
 import { pathToFileURL } from 'url'
@@ -28,15 +28,42 @@ export function registerMediaScheme(): void {
   ])
 }
 
+const notFound = (): Response => new Response('Not found', { status: 404 })
+
+// Icon lấy từ file exe của game (cache theo đường dẫn để không đọc lại mỗi lần render)
+const iconCache = new Map<string, Buffer>()
+
+async function exeIcon(gameId: string): Promise<Response> {
+  const game = gameService.getGameById(gameId)
+  const target = game?.exe_path.trim()
+  if (!target || /^steam:\/\//i.test(target) || !existsSync(target)) return notFound()
+
+  let png = iconCache.get(target)
+  if (!png) {
+    try {
+      const icon = await app.getFileIcon(target, { size: 'large' })
+      if (icon.isEmpty()) return notFound()
+      png = icon.toPNG()
+      iconCache.set(target, png)
+    } catch {
+      return notFound()
+    }
+  }
+  return new Response(new Uint8Array(png), { headers: { 'Content-Type': 'image/png' } })
+}
+
 // game-media://cover/<tên file>: chỉ phục vụ file nằm trong thư mục covers
+// game-media://icon/<gameId>: icon của file exe game
 export function registerMediaProtocol(): void {
   protocol.handle(MEDIA_SCHEME, (request) => {
     const url = new URL(request.url)
-    const fileName = decodeURIComponent(url.pathname.replace(/^\//, ''))
-    if (url.host !== 'cover' || !SAFE_FILE_NAME.test(fileName)) {
-      return new Response('Not found', { status: 404 })
+    const name = decodeURIComponent(url.pathname.replace(/^\//, ''))
+
+    if (url.host === 'icon' && /^[\w-]+$/.test(name)) return exeIcon(name)
+    if (url.host === 'cover' && SAFE_FILE_NAME.test(name)) {
+      return net.fetch(pathToFileURL(join(coversDir(), name)).toString())
     }
-    return net.fetch(pathToFileURL(join(coversDir(), fileName)).toString())
+    return notFound()
   })
 }
 

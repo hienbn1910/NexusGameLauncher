@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useLauncher } from '../hooks/useLauncher'
-import { coverUrl, gameGradient, gameInitials } from '../utils/gameArt'
+import { GameThumb } from './GameThumb'
 import {
   DownloadIcon,
   GearIcon,
@@ -96,13 +96,7 @@ export function Sidebar({
                 className={`library-item ${selectedGameId === game.id ? 'active' : ''}`}
                 onClick={() => onSelectGame(game)}
               >
-                <span className="library-thumb" style={{ background: gameGradient(game.title) }}>
-                  {coverUrl(game) ? (
-                    <img src={coverUrl(game)!} alt="" draggable={false} />
-                  ) : (
-                    gameInitials(game.title)
-                  )}
-                </span>
+                <GameThumb game={game} />
                 <span className="library-title">{game.title}</span>
                 {runningIds.has(game.id) && <span className="pulse-dot" title="Đang chạy" />}
               </button>

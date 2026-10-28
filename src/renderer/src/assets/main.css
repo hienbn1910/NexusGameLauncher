@@ -308,6 +308,14 @@ ul {
   height: 100%;
   object-fit: cover;
 }
+/* Icon exe: giữ nguyên tỉ lệ, nền trong suốt */
+.library-thumb.has-icon {
+  background: transparent;
+  border-radius: 4px;
+}
+.library-thumb.has-icon img {
+  object-fit: contain;
+}
 
 .library-title {
   overflow: hidden;
