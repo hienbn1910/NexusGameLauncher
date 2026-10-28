@@ -10,6 +10,12 @@ import { registerMediaProtocol, registerMediaScheme } from './services/cover.ser
 import { autoFetchAllArt } from './services/steam-art.service'
 import { cleanupTempDownloads } from './services/steamgriddb.service'
 
+const APP_NAME = 'Nexus Launcher'
+
+// Giữ thư mục dữ liệu cũ (%APPDATA%\game-launcher) để không mất database và ảnh bìa khi đổi tên app
+app.setPath('userData', join(app.getPath('appData'), 'game-launcher'))
+app.setName(APP_NAME)
+
 // Scheme game-media:// (ảnh bìa) phải đăng ký trước khi app ready
 registerMediaScheme()
 
@@ -22,8 +28,9 @@ function createWindow(): void {
     minHeight: 600,
     backgroundColor: '#0d0f14',
     show: false,
+    title: APP_NAME,
     autoHideMenuBar: true,
-    ...(process.platform === 'linux' ? { icon } : {}),
+    icon,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false
@@ -64,7 +71,8 @@ app.whenReady().then(() => {
   registerMediaProtocol()
   registerSteamGridDbHandlers()
   void cleanupTempDownloads()
-  electronApp.setAppUserModelId('com.electron')
+  // Windows nhóm cửa sổ trên taskbar và hiển thị thông báo theo ID này
+  electronApp.setAppUserModelId('com.nexus.launcher')
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.
