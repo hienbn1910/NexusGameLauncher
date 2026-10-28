@@ -1,4 +1,4 @@
-import { formatPlaytime, gameAccent, gameGradient, gameInitials } from '../utils/gameArt'
+import { coverUrl, formatPlaytime, gameAccent, gameGradient, gameInitials } from '../utils/gameArt'
 import { ClockIcon, PencilIcon, StarIcon } from './Icons'
 import { PlayButton } from './PlayButton'
 
@@ -8,10 +8,18 @@ interface FeaturedBannerProps {
 }
 
 export function FeaturedBanner({ game, onEdit }: FeaturedBannerProps): React.JSX.Element {
+  const cover = coverUrl(game)
+
   return (
     <section className="featured" style={{ background: gameGradient(game.title) }}>
-      <span className="featured-watermark">{gameInitials(game.title)}</span>
-      <div className="featured-glow" style={{ background: gameAccent(game.title) }} />
+      {cover ? (
+        <img className="featured-cover" src={cover} alt="" draggable={false} />
+      ) : (
+        <>
+          <span className="featured-watermark">{gameInitials(game.title)}</span>
+          <div className="featured-glow" style={{ background: gameAccent(game.title) }} />
+        </>
+      )}
 
       <div className="featured-content">
         <span className="featured-badge">

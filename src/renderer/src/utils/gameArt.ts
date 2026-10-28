@@ -19,6 +19,13 @@ export function gameAccent(title: string): string {
   return `hsl(${hashString(title) % 360} 70% 55%)`
 }
 
+// URL ảnh bìa qua giao thức riêng game-media:// (main process phục vụ file trong thư mục covers)
+export function coverUrl(game: Pick<Game, 'cover_path'>): string | null {
+  if (!game.cover_path) return null
+  const fileName = game.cover_path.split(/[\\/]/).pop() ?? ''
+  return `game-media://cover/${encodeURIComponent(fileName)}`
+}
+
 export function gameInitials(title: string): string {
   const words = title.trim().split(/\s+/).filter(Boolean)
   if (words.length === 0) return '?'
@@ -26,12 +33,10 @@ export function gameInitials(title: string): string {
   return (words[0][0] + words[1][0]).toUpperCase()
 }
 
-// total_playtime được lưu theo đơn vị giờ (có thể là số lẻ, vd 1.5 = 1 giờ 30 phút)
+// total_playtime được lưu theo đơn vị giờ, hiển thị 1 chữ số thập phân: 12.5 giờ, 3 giờ
 export function formatPlaytime(hours: number): string {
   if (!hours) return 'Chưa chơi'
-  const totalMinutes = Math.round(hours * 60)
-  const h = Math.floor(totalMinutes / 60)
-  const m = totalMinutes % 60
-  if (h === 0) return `${m} phút`
-  return m > 0 ? `${h} giờ ${m} phút` : `${h} giờ`
+  if (hours < 0.1) return '< 0.1 giờ'
+  const rounded = Math.round(hours * 10) / 10
+  return `${rounded.toFixed(1).replace(/\.0$/, '')} giờ`
 }

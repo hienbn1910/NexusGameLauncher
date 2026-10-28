@@ -4,7 +4,8 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   main: {
-    plugins: [externalizeDepsPlugin()]
+    // resedit / pe-library chỉ có bản ESM nên bundle thẳng vào main thay vì require lúc chạy
+    plugins: [externalizeDepsPlugin({ exclude: ['resedit', 'pe-library'] })]
   },
   preload: {
     plugins: [externalizeDepsPlugin()]

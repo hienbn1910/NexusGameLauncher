@@ -7,6 +7,7 @@ import { TopBar } from './components/TopBar'
 import { LauncherContext } from './hooks/useLauncher'
 import { CataloguePage } from './pages/CataloguePage'
 import { HomePage } from './pages/HomePage'
+import { SettingsPage } from './pages/SettingsPage'
 
 const PAGE_TITLES: Record<PageKey, string> = {
   home: 'Trang chủ',
@@ -173,7 +174,8 @@ function App(): React.JSX.Element {
                 onToggleFavorite={toggleFavorite}
               />
             )}
-            {(page === 'downloads' || page === 'settings') && (
+            {page === 'settings' && <SettingsPage />}
+            {page === 'downloads' && (
               <div className="empty-state">
                 <h2>{PAGE_TITLES[page]}</h2>
                 <p>Trang này đang được phát triển.</p>

@@ -14,6 +14,7 @@ export interface Game {
   is_favorite: number
   total_playtime: number
   last_played: string | null
+  process_name: string | null
   created_at: string
   updated_at: string
 }
@@ -23,9 +24,10 @@ export interface CreateGameInput {
   title: string
   exe_path: string
   genre?: string
+  process_name?: string
 }
 
-// Kiểu dữ liệu khi sửa game (genre = '' nghĩa là xoá thể loại)
+// Kiểu dữ liệu khi sửa game (genre / process_name = '' nghĩa là xoá giá trị)
 export interface UpdateGameInput extends Partial<CreateGameInput> {
   is_favorite?: boolean
 }
@@ -58,11 +60,22 @@ export function createGame(input: CreateGameInput): Game {
 
   const db = getDb()
   const stmt = db.prepare(`
-    INSERT INTO games (id, title, exe_path, source, source_id, genre, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO games
+      (id, title, exe_path, source, source_id, genre, process_name, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `)
 
-  stmt.run(id, input.title, input.exe_path, source, source_id, input.genre ?? null, now, now)
+  stmt.run(
+    id,
+    input.title,
+    input.exe_path,
+    source,
+    source_id,
+    input.genre || null,
+    input.process_name?.trim() || null,
+    now,
+    now
+  )
 
   return getGameById(id)!
 }
@@ -78,7 +91,8 @@ export function updateGame(id: string, input: UpdateGameInput): Game | undefined
   const { source, source_id } = sourceFromPath(exePath)
   const stmt = db.prepare(`
     UPDATE games
-    SET title = ?, exe_path = ?, source = ?, source_id = ?, genre = ?, is_favorite = ?, updated_at = ?
+    SET title = ?, exe_path = ?, source = ?, source_id = ?, genre = ?, process_name = ?,
+        is_favorite = ?, updated_at = ?
     WHERE id = ?
   `)
 
@@ -88,11 +102,24 @@ export function updateGame(id: string, input: UpdateGameInput): Game | undefined
     source,
     source_id,
     input.genre !== undefined ? input.genre || null : existing.genre,
+    input.process_name !== undefined
+      ? input.process_name.trim() || null
+      : existing.process_name,
     input.is_favorite !== undefined ? Number(input.is_favorite) : existing.is_favorite,
     now,
     id
   )
 
+  return getGameById(id)
+}
+
+export function updateCoverPath(id: string, coverPath: string | null): Game | undefined {
+  const db = getDb()
+  db.prepare('UPDATE games SET cover_path = ?, updated_at = ? WHERE id = ?').run(
+    coverPath,
+    new Date().toISOString(),
+    id
+  )
   return getGameById(id)
 }
 

@@ -1,5 +1,5 @@
 import { useLauncher } from '../hooks/useLauncher'
-import { formatPlaytime, gameGradient, gameInitials } from '../utils/gameArt'
+import { coverUrl, formatPlaytime, gameGradient, gameInitials } from '../utils/gameArt'
 import { ClockIcon, PencilIcon, PlayIcon, StarIcon } from './Icons'
 
 interface GameCardProps {
@@ -19,6 +19,7 @@ export function GameCard({
   const { runningIds, launchingId, launch } = useLauncher()
   const running = runningIds.has(game.id)
   const launching = launchingId === game.id
+  const cover = coverUrl(game)
 
   return (
     <div className={`game-card ${running ? 'running' : ''}`} onClick={() => onSelect(game)}>
@@ -28,7 +29,11 @@ export function GameCard({
         </span>
       )}
       <div className="game-card-art" style={{ background: gameGradient(game.title) }}>
-        <span className="game-card-initials">{gameInitials(game.title)}</span>
+        {cover ? (
+          <img className="game-card-cover" src={cover} alt="" draggable={false} />
+        ) : (
+          <span className="game-card-initials">{gameInitials(game.title)}</span>
+        )}
 
         <div className="game-card-actions">
           <button

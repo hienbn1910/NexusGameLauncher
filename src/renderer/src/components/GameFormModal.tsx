@@ -1,6 +1,23 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { GENRES } from '../constants/genres'
-import { FolderIcon, PlusIcon, SaveIcon, StarIcon, TrashIcon, XIcon } from './Icons'
+import { coverUrl, gameGradient } from '../utils/gameArt'
+import { CoverSearchModal } from './CoverSearchModal'
+import {
+  FolderIcon,
+  ImageIcon,
+  PlusIcon,
+  SaveIcon,
+  SearchIcon,
+  StarIcon,
+  TrashIcon,
+  XIcon
+} from './Icons'
+
+const SUGGESTION_LABEL: Record<NameSuggestion['source'], string> = {
+  metadata: 'Từ thông tin exe',
+  folder: 'Từ tên thư mục',
+  file: 'Từ tên file'
+}
 
 interface GameFormModalProps {
   // Có game => chế độ sửa, không có => chế độ thêm
@@ -41,10 +58,22 @@ export function GameFormModal({
   const [exePath, setExePath] = useState(isSteamUri(initialPath) ? '' : initialPath)
   const [steamInput, setSteamInput] = useState(isSteamUri(initialPath) ? initialPath : '')
   const [genre, setGenre] = useState(game?.genre ?? '')
+  const [processName, setProcessName] = useState(game?.process_name ?? '')
   const [favorite, setFavorite] = useState(game?.is_favorite === 1)
+  // Gợi ý tên game; titleTouched = người dùng đã tự gõ tên thì không ghi đè nữa
+  const [suggestions, setSuggestions] = useState<NameSuggestion[]>([])
+  const [titleTouched, setTitleTouched] = useState(isEdit)
+  // Ảnh bìa: coverSource = ảnh mới chọn (chưa lưu), coverRemoved = muốn xoá ảnh hiện tại
+  const [coverPreview, setCoverPreview] = useState<string | null>(game ? coverUrl(game) : null)
+  const [coverSource, setCoverSource] = useState<string | null>(null)
+  const [coverRemoved, setCoverRemoved] = useState(false)
+  const [dragOver, setDragOver] = useState(false)
+  const [showCoverSearch, setShowCoverSearch] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const closeCoverSearch = useCallback(() => setShowCoverSearch(false), [])
 
   // Esc: đang hỏi xác nhận xoá thì quay lại form, không thì đóng modal
   useEffect(() => {
@@ -61,8 +90,48 @@ export function GameFormModal({
     const path = await window.electronAPI.games.selectExe()
     if (!path) return
     setExePath(path)
-    if (!title.trim()) setTitle(fileNameWithoutExt(path))
     setError(null)
+
+    const { suggestions: found } = await window.electronAPI.games.inspectExe(path)
+    setSuggestions(found)
+    if (!titleTouched || !title.trim()) {
+      setTitle(found[0]?.name ?? fileNameWithoutExt(path))
+    }
+  }
+
+  const applyCover = (path: string, preview: string): void => {
+    setCoverSource(path)
+    setCoverPreview(preview)
+    setCoverRemoved(false)
+  }
+
+  const pickCover = async (): Promise<void> => {
+    const result = await window.electronAPI.games.selectCover()
+    if (result) applyCover(result.path, result.preview)
+  }
+
+  const handleCoverDrop = async (e: React.DragEvent): Promise<void> => {
+    e.preventDefault()
+    setDragOver(false)
+    const file = e.dataTransfer.files[0]
+    if (!file) return
+    const path = window.electronAPI.games.getPathForFile(file)
+    const preview = await window.electronAPI.games.previewCover(path)
+    if (preview) applyCover(path, preview)
+    else setError('File kéo vào không phải ảnh hợp lệ (png, jpg, webp, bmp)')
+  }
+
+  const removeCover = (): void => {
+    setCoverSource(null)
+    setCoverPreview(null)
+    setCoverRemoved(true)
+  }
+
+  // Chọn file exe của game thật, chỉ lấy tên file (vd Game.exe)
+  const pickProcess = async (): Promise<void> => {
+    const path = await window.electronAPI.games.selectExe()
+    if (!path) return
+    setProcessName(path.split(/[\\/]/).pop() ?? '')
   }
 
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
@@ -86,19 +155,27 @@ export function GameFormModal({
           title: title.trim(),
           exe_path: launchPath,
           genre,
+          process_name: processName,
           is_favorite: favorite
         })
       } else {
         saved = await window.electronAPI.games.create({
           title: title.trim(),
           exe_path: launchPath,
-          genre: genre || undefined
+          genre: genre || undefined,
+          process_name: processName || undefined
         })
         if (favorite) {
           saved = await window.electronAPI.games.update(saved.id, { is_favorite: true })
         }
       }
       if (!saved) throw new Error('Game không còn tồn tại')
+
+      if (coverSource) {
+        saved = (await window.electronAPI.games.setCover(saved.id, coverSource)) ?? saved
+      } else if (coverRemoved && saved.cover_path) {
+        saved = (await window.electronAPI.games.setCover(saved.id, null)) ?? saved
+      }
       onSaved(saved)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Không thể lưu game')
@@ -165,16 +242,94 @@ export function GameFormModal({
         ) : (
           <>
             <div className="modal-body">
-              <label className="field">
-                <span className="field-label">Tên game</span>
+              <div
+                className={`cover-picker ${dragOver ? 'drag-over' : ''} ${coverPreview ? 'has-image' : ''}`}
+                style={
+                  coverPreview
+                    ? { backgroundImage: `url("${coverPreview}")` }
+                    : { background: gameGradient(title || 'game') }
+                }
+                onClick={pickCover}
+                onDragOver={(e) => {
+                  e.preventDefault()
+                  setDragOver(true)
+                }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={handleCoverDrop}
+              >
+                {!coverPreview && (
+                  <span className="cover-picker-hint">
+                    <ImageIcon width={22} height={22} />
+                    Bấm hoặc kéo ảnh vào để đặt ảnh bìa
+                  </span>
+                )}
+                {coverPreview && (
+                  <div className="cover-picker-actions">
+                    <button type="button" className="btn btn-glass btn-xs">
+                      <ImageIcon width={14} height={14} /> Đổi ảnh
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-glass btn-xs"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        removeCover()
+                      }}
+                    >
+                      <TrashIcon width={14} height={14} /> Xoá ảnh
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className="cover-toolbar">
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-xs"
+                  onClick={() => setShowCoverSearch(true)}
+                >
+                  <SearchIcon width={14} height={14} /> Tìm ảnh online
+                </button>
+                <span className="field-hint">
+                  Ảnh từ SteamGridDB, bạn chọn và xác nhận trước khi dùng
+                </span>
+              </div>
+
+              <div className="field">
+                <label className="field-label" htmlFor="game-title">
+                  Tên game
+                </label>
                 <input
+                  id="game-title"
                   className="input"
                   autoFocus
                   placeholder="Vd: Hollow Knight"
                   value={title}
-                  onChange={(e) => setTitle(e.target.value)}
+                  onChange={(e) => {
+                    setTitle(e.target.value)
+                    setTitleTouched(true)
+                  }}
                 />
-              </label>
+                {suggestions.length > 0 && (
+                  <div className="name-suggestions">
+                    <span>Gợi ý:</span>
+                    {suggestions.map((s) => (
+                      <button
+                        key={s.name}
+                        type="button"
+                        title={SUGGESTION_LABEL[s.source]}
+                        className={`suggestion-chip ${s.name === title ? 'active' : ''}`}
+                        onClick={() => {
+                          setTitle(s.name)
+                          setTitleTouched(true)
+                        }}
+                      >
+                        {s.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
 
               <div className="field">
                 <div className="field-label-row">
@@ -221,6 +376,29 @@ export function GameFormModal({
                     </span>
                   </>
                 )}
+              </div>
+
+              <div className="field">
+                <span className="field-label">
+                  Tiến trình game <span className="field-optional">(không bắt buộc)</span>
+                </span>
+                <div className="file-picker">
+                  <input
+                    className="file-picker-input"
+                    placeholder="Vd: Game.exe"
+                    value={processName}
+                    onChange={(e) => setProcessName(e.target.value)}
+                  />
+                  <button type="button" className="btn btn-secondary" onClick={pickProcess}>
+                    <FolderIcon width={16} height={16} />
+                    Chọn exe
+                  </button>
+                </div>
+                <span className="field-hint">
+                  {mode === 'steam'
+                    ? 'Điền exe của game để launcher tính được giờ chơi cho game Steam.'
+                    : 'Điền khi file ở trên chỉ là launcher của game. Để trống thì tự theo dõi mọi exe trong thư mục game.'}
+                </span>
               </div>
 
               <label className="field">
@@ -271,6 +449,20 @@ export function GameFormModal({
               </button>
             </div>
           </>
+        )}
+
+        {showCoverSearch && (
+          <CoverSearchModal
+            initialQuery={title}
+            steamAppId={
+              mode === 'steam' ? (toSteamUri(steamInput)?.match(/(\d+)$/)?.[1] ?? null) : null
+            }
+            onClose={closeCoverSearch}
+            onSelect={(path, preview) => {
+              applyCover(path, preview)
+              setShowCoverSearch(false)
+            }}
+          />
         )}
       </form>
     </div>

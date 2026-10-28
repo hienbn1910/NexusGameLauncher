@@ -4,7 +4,13 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { runMigrations } from './database/migrate'
 import { registerGameHandlers } from './ipc/games.ipc'
+import { registerSteamGridDbHandlers } from './ipc/steamgriddb.ipc'
 import { initDatabase } from './database'
+import { registerMediaProtocol, registerMediaScheme } from './services/cover.service'
+import { cleanupTempDownloads } from './services/steamgriddb.service'
+
+// Scheme game-media:// (ảnh bìa) phải đăng ký trước khi app ready
+registerMediaScheme()
 
 function createWindow(): void {
   // Create the browser window.
@@ -49,6 +55,9 @@ app.whenReady().then(() => {
   initDatabase()
   runMigrations()
   registerGameHandlers()
+  registerMediaProtocol()
+  registerSteamGridDbHandlers()
+  void cleanupTempDownloads()
   electronApp.setAppUserModelId('com.electron')
 
   // Default open or close DevTools by F12 in development
