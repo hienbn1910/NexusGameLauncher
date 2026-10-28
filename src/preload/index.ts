@@ -9,10 +9,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     delete: (id: string) => ipcRenderer.invoke('games:delete', id),
     selectExe: () => ipcRenderer.invoke('games:selectExe'),
     inspectExe: (exePath: string) => ipcRenderer.invoke('games:inspectExe', exePath),
+    findSteamApp: (title: string) => ipcRenderer.invoke('games:findSteamApp', title),
     selectCover: () => ipcRenderer.invoke('games:selectCover'),
     previewCover: (imagePath: string) => ipcRenderer.invoke('games:previewCover', imagePath),
-    setCover: (id: string, imagePath: string | null) =>
-      ipcRenderer.invoke('games:setCover', id, imagePath),
+    setCover: (id: string, imagePath: string | null, kind?: string) =>
+      ipcRenderer.invoke('games:setCover', id, imagePath, kind),
     // Lấy đường dẫn thật của file được kéo-thả (File.path đã bị bỏ trong Electron mới)
     getPathForFile: (file: File) => webUtils.getPathForFile(file),
     launch: (id: string) => ipcRenderer.invoke('games:launch', id),
@@ -22,6 +23,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
       const listener = (_e: IpcRendererEvent, payload: unknown): void => callback(payload)
       ipcRenderer.on('games:sessionChanged', listener)
       return () => ipcRenderer.removeListener('games:sessionChanged', listener)
+    },
+    // Game được cập nhật từ main process (vd vừa tự lấy được ảnh bìa)
+    onUpdated: (callback: (game: unknown) => void) => {
+      const listener = (_e: IpcRendererEvent, game: unknown): void => callback(game)
+      ipcRenderer.on('games:updated', listener)
+      return () => ipcRenderer.removeListener('games:updated', listener)
     }
   },
   steamGridDb: {

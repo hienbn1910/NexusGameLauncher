@@ -11,10 +11,12 @@ export interface Game {
   source_id: string | null
   genre: string | null
   cover_path: string | null
+  poster_path: string | null
   is_favorite: number
   total_playtime: number
   last_played: string | null
   process_name: string | null
+  art_lookup: string | null
   created_at: string
   updated_at: string
 }
@@ -113,14 +115,23 @@ export function updateGame(id: string, input: UpdateGameInput): Game | undefined
   return getGameById(id)
 }
 
-export function updateCoverPath(id: string, coverPath: string | null): Game | undefined {
+// column: cover_path (ảnh ngang) hoặc poster_path (ảnh dọc)
+export function updateCoverPath(
+  id: string,
+  coverPath: string | null,
+  column: 'cover_path' | 'poster_path' = 'cover_path'
+): Game | undefined {
   const db = getDb()
-  db.prepare('UPDATE games SET cover_path = ?, updated_at = ? WHERE id = ?').run(
+  db.prepare(`UPDATE games SET ${column} = ?, updated_at = ? WHERE id = ?`).run(
     coverPath,
     new Date().toISOString(),
     id
   )
   return getGameById(id)
+}
+
+export function setArtLookup(id: string, key: string): void {
+  getDb().prepare('UPDATE games SET art_lookup = ? WHERE id = ?').run(key, id)
 }
 
 // Cộng thêm giờ chơi và cập nhật lần chơi cuối (hours = 0 khi chỉ muốn đánh dấu vừa chơi)

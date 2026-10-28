@@ -1,8 +1,9 @@
-import { existsSync, mkdirSync } from 'fs'
+import { mkdirSync } from 'fs'
 import { copyFile, readFile, rm, writeFile } from 'fs/promises'
 import { basename, extname, join } from 'path'
 import { pathToFileURL } from 'url'
 import { app, nativeImage, net, protocol } from 'electron'
+import { getGameIcon } from './exe-icon.service'
 import * as gameService from './game.service'
 import type { Game } from './game.service'
 
@@ -30,25 +31,11 @@ export function registerMediaScheme(): void {
 
 const notFound = (): Response => new Response('Not found', { status: 404 })
 
-// Icon lấy từ file exe của game (cache theo đường dẫn để không đọc lại mỗi lần render)
-const iconCache = new Map<string, Buffer>()
-
+// Icon game lấy từ file exe (ưu tiên exe tiến trình game, sau đó tới file launcher)
 async function exeIcon(gameId: string): Promise<Response> {
   const game = gameService.getGameById(gameId)
-  const target = game?.exe_path.trim()
-  if (!target || /^steam:\/\//i.test(target) || !existsSync(target)) return notFound()
-
-  let png = iconCache.get(target)
-  if (!png) {
-    try {
-      const icon = await app.getFileIcon(target, { size: 'large' })
-      if (icon.isEmpty()) return notFound()
-      png = icon.toPNG()
-      iconCache.set(target, png)
-    } catch {
-      return notFound()
-    }
-  }
+  const png = game ? await getGameIcon(game) : null
+  if (!png) return notFound()
   return new Response(new Uint8Array(png), { headers: { 'Content-Type': 'image/png' } })
 }
 
@@ -92,10 +79,14 @@ async function removeCoverFile(coverPath: string | null): Promise<void> {
   }
 }
 
+// cover: ảnh ngang (thẻ game, banner), poster: ảnh dọc 2:3 (lưới kiểu Steam)
+export type CoverKind = 'cover' | 'poster'
+
 // Copy ảnh người dùng chọn vào thư mục covers (không trỏ tới file gốc vì có thể bị xoá/di chuyển)
 export async function setCover(
   gameId: string,
-  imagePath: string | null
+  imagePath: string | null,
+  kind: CoverKind = 'cover'
 ): Promise<Game | undefined> {
   const game = gameService.getGameById(gameId)
   if (!game) return undefined
@@ -124,10 +115,12 @@ export async function setCover(
     }
   }
 
-  await removeCoverFile(game.cover_path)
-  return gameService.updateCoverPath(gameId, newPath)
+  const column = kind === 'poster' ? 'poster_path' : 'cover_path'
+  await removeCoverFile(game[column])
+  return gameService.updateCoverPath(gameId, newPath, column)
 }
 
 export async function deleteCover(game: Game): Promise<void> {
   await removeCoverFile(game.cover_path)
+  await removeCoverFile(game.poster_path)
 }

@@ -11,7 +11,7 @@ const API_KEY_SETTING = 'steamgriddb_api_key'
 const ALLOWED_IMAGE_HOSTS = new Set(['cdn2.steamgriddb.com', 'cdn.steamgriddb.com'])
 const MAX_IMAGE_BYTES = 20 * 1024 * 1024
 
-export type ImageKind = 'grid' | 'hero'
+export type ImageKind = 'poster' | 'grid' | 'hero'
 
 export interface SgdbGame {
   id: number
@@ -117,14 +117,19 @@ interface RawImage {
   author?: { name?: string }
 }
 
+// poster: ảnh dọc kiểu thư viện Steam (600x900) - hợp với lưới ảnh bìa
 // grid: ảnh ngang kiểu header Steam (920x430) - hợp với thẻ game
 // hero: ảnh banner lớn (1920x620) - hợp với banner nổi bật
+const IMAGE_PATHS: Record<ImageKind, (gameId: number) => string> = {
+  poster: (id) => `/grids/game/${id}?dimensions=600x900,342x482,660x930`,
+  grid: (id) => `/grids/game/${id}?dimensions=920x430,460x215`,
+  hero: (id) => `/heroes/game/${id}?`
+}
+
 export async function getImages(gameId: number, kind: ImageKind, page = 0): Promise<SgdbImage[]> {
   const filters = 'types=static&nsfw=false&humor=false'
-  const path =
-    kind === 'grid'
-      ? `/grids/game/${gameId}?dimensions=920x430,460x215&${filters}&page=${page}`
-      : `/heroes/game/${gameId}?${filters}&page=${page}`
+  const base = (IMAGE_PATHS[kind] ?? IMAGE_PATHS.grid)(gameId)
+  const path = `${base}${base.endsWith('?') ? '' : '&'}${filters}&page=${page}`
 
   let data: RawImage[]
   try {

@@ -57,6 +57,13 @@ function App(): React.JSX.Element {
     })
   }, [])
 
+  // Main process tự lấy được ảnh bìa (Steam) cho game
+  useEffect(() => {
+    return window.electronAPI.games.onUpdated((game) => {
+      setGames((prev) => prev.map((g) => (g.id === game.id ? game : g)))
+    })
+  }, [])
+
   const showToast = (type: ToastMessage['type'], text: string): void => {
     setToast({ id: Date.now(), type, text })
   }
@@ -119,6 +126,8 @@ function App(): React.JSX.Element {
       replaceGame(saved)
     }
     setForm(null)
+    // Ảnh Steam có thể đã được lấy xong trong lúc form đang lưu => đọc lại từ DB cho chắc
+    window.electronAPI.games.getById(saved.id).then((fresh) => fresh && replaceGame(fresh))
   }
 
   const handleDeleted = (id: string): void => {

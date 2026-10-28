@@ -3,6 +3,7 @@ import * as coverService from '../services/cover.service'
 import * as exeMetadataService from '../services/exe-metadata.service'
 import * as gameService from '../services/game.service'
 import * as launcherService from '../services/launcher.service'
+import * as steamArtService from '../services/steam-art.service'
 
 export function registerGameHandlers() {
   // Mở dialog chọn file thực thi, trả về đường dẫn hoặc null nếu người dùng huỷ
@@ -52,9 +53,21 @@ export function registerGameHandlers() {
     return coverService.createPreview(imagePath)
   })
 
-  // imagePath = null để xoá ảnh bìa
-  ipcMain.handle('games:setCover', (_event, id: string, imagePath: string | null) => {
-    return coverService.setCover(id, imagePath)
+  // imagePath = null để xoá ảnh bìa; kind = 'poster' cho ảnh dọc
+  ipcMain.handle(
+    'games:setCover',
+    (_event, id: string, imagePath: string | null, kind?: string) => {
+      return coverService.setCover(id, imagePath, kind === 'poster' ? 'poster' : 'cover')
+    }
+  )
+
+  // Tìm Steam App ID theo tên game; null nếu không thấy hoặc lỗi mạng
+  ipcMain.handle('games:findSteamApp', async (_event, title: string) => {
+    try {
+      return await steamArtService.findSteamApp(String(title ?? ''))
+    } catch {
+      return null
+    }
   })
 
   ipcMain.handle('games:getAll', () => {
@@ -65,12 +78,17 @@ export function registerGameHandlers() {
     return gameService.getGameById(id)
   })
 
+  // Sau khi thêm/sửa: tự tìm ảnh Steam ở nền, có ảnh sẽ báo qua sự kiện games:updated
   ipcMain.handle('games:create', (_event, input) => {
-    return gameService.createGame(input)
+    const game = gameService.createGame(input)
+    void steamArtService.autoFetchArt(game.id)
+    return game
   })
 
   ipcMain.handle('games:update', (_event, id: string, input) => {
-    return gameService.updateGame(id, input)
+    const game = gameService.updateGame(id, input)
+    if (game) void steamArtService.autoFetchArt(game.id)
+    return game
   })
 
   ipcMain.handle('games:delete', async (_event, id: string) => {

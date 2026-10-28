@@ -39,6 +39,27 @@ export const GridIcon = (p: IconProps): React.JSX.Element => (
   </Base>
 )
 
+// Lưới ảnh bìa dọc (kiểu thư viện Steam)
+export const PosterGridIcon = (p: IconProps): React.JSX.Element => (
+  <Base {...p}>
+    <rect x="3" y="3" width="5" height="8" rx="1" />
+    <rect x="9.5" y="3" width="5" height="8" rx="1" />
+    <rect x="16" y="3" width="5" height="8" rx="1" />
+    <rect x="3" y="13" width="5" height="8" rx="1" />
+    <rect x="9.5" y="13" width="5" height="8" rx="1" />
+    <rect x="16" y="13" width="5" height="8" rx="1" />
+  </Base>
+)
+
+// Thẻ game ngang
+export const CardsIcon = (p: IconProps): React.JSX.Element => (
+  <Base {...p}>
+    <rect x="3" y="4" width="8" height="7" rx="1.5" />
+    <rect x="13" y="4" width="8" height="7" rx="1.5" />
+    <path d="M3 15h8M3 19h5M13 15h8M13 19h5" />
+  </Base>
+)
+
 export const DownloadIcon = (p: IconProps): React.JSX.Element => (
   <Base {...p}>
     <path d="M12 4v11" />

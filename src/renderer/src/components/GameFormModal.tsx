@@ -1,17 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { GENRES } from '../constants/genres'
-import { coverUrl, gameGradient } from '../utils/gameArt'
+import { coverUrl, gameGradient, posterUrl } from '../utils/gameArt'
+import { CoverPicker } from './CoverPicker'
 import { CoverSearchModal } from './CoverSearchModal'
-import {
-  FolderIcon,
-  ImageIcon,
-  PlusIcon,
-  SaveIcon,
-  SearchIcon,
-  StarIcon,
-  TrashIcon,
-  XIcon
-} from './Icons'
+import { FolderIcon, PlusIcon, SaveIcon, SearchIcon, StarIcon, TrashIcon, XIcon } from './Icons'
 
 const SUGGESTION_LABEL: Record<NameSuggestion['source'], string> = {
   metadata: 'Từ thông tin exe',
@@ -28,6 +20,17 @@ interface GameFormModalProps {
 }
 
 type LaunchMode = 'file' | 'steam'
+
+type SteamLookup =
+  | { title: string; status: 'searching' | 'notfound' }
+  | { title: string; status: 'found'; match: SteamAppMatch }
+
+// source = ảnh mới chọn (chưa lưu), removed = muốn xoá ảnh hiện tại
+interface ImageSlot {
+  preview: string | null
+  source: string | null
+  removed: boolean
+}
 
 // Lấy tên file (bỏ đuôi) để gợi ý tên game
 function fileNameWithoutExt(path: string): string {
@@ -63,17 +66,56 @@ export function GameFormModal({
   // Gợi ý tên game; titleTouched = người dùng đã tự gõ tên thì không ghi đè nữa
   const [suggestions, setSuggestions] = useState<NameSuggestion[]>([])
   const [titleTouched, setTitleTouched] = useState(isEdit)
-  // Ảnh bìa: coverSource = ảnh mới chọn (chưa lưu), coverRemoved = muốn xoá ảnh hiện tại
-  const [coverPreview, setCoverPreview] = useState<string | null>(game ? coverUrl(game) : null)
-  const [coverSource, setCoverSource] = useState<string | null>(null)
-  const [coverRemoved, setCoverRemoved] = useState(false)
-  const [dragOver, setDragOver] = useState(false)
-  const [showCoverSearch, setShowCoverSearch] = useState(false)
+  // Ảnh bìa ngang (cover) và dọc (poster), chỉ lưu khi bấm Lưu
+  const [images, setImages] = useState<Record<CoverKind, ImageSlot>>({
+    cover: { preview: game ? coverUrl(game) : null, source: null, removed: false },
+    poster: { preview: game ? posterUrl(game) : null, source: null, removed: false }
+  })
+  // Loại ảnh mở sẵn khi tìm online (null = đóng hộp thoại tìm)
+  const [coverSearchKind, setCoverSearchKind] = useState<SgdbImageKind | null>(null)
+  // Tự tìm Steam App ID theo tên game khi để trống ô App ID (title = tên lúc tìm)
+  const [steamLookup, setSteamLookup] = useState<SteamLookup | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const closeCoverSearch = useCallback(() => setShowCoverSearch(false), [])
+  const closeCoverSearch = useCallback(() => setCoverSearchKind(null), [])
+
+  const autoSteam = mode === 'steam' && !steamInput.trim()
+  const trimmedTitle = title.trim()
+  // Kết quả tìm chỉ dùng được nếu tên game chưa bị sửa sau lúc tìm
+  const lookup = autoSteam && steamLookup?.title === trimmedTitle ? steamLookup : null
+
+  // Gõ tên xong (nghỉ 500ms) thì tự tìm game trên Steam
+  useEffect(() => {
+    if (!autoSteam || !trimmedTitle) return
+    let cancelled = false
+    const timer = setTimeout(() => {
+      setSteamLookup({ title: trimmedTitle, status: 'searching' })
+      window.electronAPI.games.findSteamApp(trimmedTitle).then((match) => {
+        if (cancelled) return
+        setSteamLookup(
+          match
+            ? { title: trimmedTitle, status: 'found', match }
+            : { title: trimmedTitle, status: 'notfound' }
+        )
+      })
+    }, 500)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [autoSteam, trimmedTitle])
+
+  // App ID đang dùng: người dùng nhập, hoặc kết quả tự tìm
+  const steamAppId =
+    mode !== 'steam'
+      ? null
+      : steamInput.trim()
+        ? (toSteamUri(steamInput)?.match(/(\d+)$/)?.[1] ?? null)
+        : lookup?.status === 'found'
+          ? lookup.match.appId
+          : null
 
   // Esc: đang hỏi xác nhận xoá thì quay lại form, không thì đóng modal
   useEffect(() => {
@@ -99,32 +141,23 @@ export function GameFormModal({
     }
   }
 
-  const applyCover = (path: string, preview: string): void => {
-    setCoverSource(path)
-    setCoverPreview(preview)
-    setCoverRemoved(false)
+  const applyImage = (kind: CoverKind, path: string, preview: string): void => {
+    setImages((prev) => ({ ...prev, [kind]: { preview, source: path, removed: false } }))
   }
 
-  const pickCover = async (): Promise<void> => {
+  const pickImage = async (kind: CoverKind): Promise<void> => {
     const result = await window.electronAPI.games.selectCover()
-    if (result) applyCover(result.path, result.preview)
+    if (result) applyImage(kind, result.path, result.preview)
   }
 
-  const handleCoverDrop = async (e: React.DragEvent): Promise<void> => {
-    e.preventDefault()
-    setDragOver(false)
-    const file = e.dataTransfer.files[0]
-    if (!file) return
-    const path = window.electronAPI.games.getPathForFile(file)
+  const dropImage = async (kind: CoverKind, path: string): Promise<void> => {
     const preview = await window.electronAPI.games.previewCover(path)
-    if (preview) applyCover(path, preview)
+    if (preview) applyImage(kind, path, preview)
     else setError('File kéo vào không phải ảnh hợp lệ (png, jpg, webp, bmp)')
   }
 
-  const removeCover = (): void => {
-    setCoverSource(null)
-    setCoverPreview(null)
-    setCoverRemoved(true)
+  const removeImage = (kind: CoverKind): void => {
+    setImages((prev) => ({ ...prev, [kind]: { preview: null, source: null, removed: true } }))
   }
 
   // Chọn file exe của game thật, chỉ lấy tên file (vd Game.exe)
@@ -139,15 +172,30 @@ export function GameFormModal({
     if (!title.trim()) return setError('Vui lòng nhập tên game')
 
     let launchPath = exePath
-    if (mode === 'steam') {
-      const uri = toSteamUri(steamInput)
-      if (!uri) return setError('Nhập Steam App ID (vd: 730) hoặc URI dạng steam://...')
-      launchPath = uri
-    } else if (!exePath) {
-      return setError('Vui lòng chọn file chạy game')
-    }
+    if (mode === 'file' && !exePath) return setError('Vui lòng chọn file chạy game')
 
     setSubmitting(true)
+    if (mode === 'steam') {
+      let uri = toSteamUri(steamInput)
+      if (!steamInput.trim()) {
+        // Bấm Lưu trước khi kịp tìm xong => tìm luôn
+        const match =
+          lookup?.status === 'found'
+            ? lookup.match
+            : await window.electronAPI.games.findSteamApp(trimmedTitle)
+        if (match) uri = `steam://rungameid/${match.appId}`
+      }
+      if (!uri) {
+        setSubmitting(false)
+        return setError(
+          steamInput.trim()
+            ? 'App ID không hợp lệ. Nhập số (vd: 730) hoặc URI dạng steam://...'
+            : `Không tìm thấy "${trimmedTitle}" trên Steam. Kiểm tra lại tên game hoặc nhập App ID.`
+        )
+      }
+      launchPath = uri
+    }
+
     try {
       let saved: Game | undefined
       if (game) {
@@ -171,10 +219,14 @@ export function GameFormModal({
       }
       if (!saved) throw new Error('Game không còn tồn tại')
 
-      if (coverSource) {
-        saved = (await window.electronAPI.games.setCover(saved.id, coverSource)) ?? saved
-      } else if (coverRemoved && saved.cover_path) {
-        saved = (await window.electronAPI.games.setCover(saved.id, null)) ?? saved
+      for (const kind of ['cover', 'poster'] as CoverKind[]) {
+        const { source, removed } = images[kind]
+        const current = kind === 'poster' ? saved.poster_path : saved.cover_path
+        if (source) {
+          saved = (await window.electronAPI.games.setCover(saved.id, source, kind)) ?? saved
+        } else if (removed && current) {
+          saved = (await window.electronAPI.games.setCover(saved.id, null, kind)) ?? saved
+        }
       }
       onSaved(saved)
     } catch (err) {
@@ -242,58 +294,47 @@ export function GameFormModal({
         ) : (
           <>
             <div className="modal-body">
-              <div
-                className={`cover-picker ${dragOver ? 'drag-over' : ''} ${coverPreview ? 'has-image' : ''}`}
-                style={
-                  coverPreview
-                    ? { backgroundImage: `url("${coverPreview}")` }
-                    : { background: gameGradient(title || 'game') }
-                }
-                onClick={pickCover}
-                onDragOver={(e) => {
-                  e.preventDefault()
-                  setDragOver(true)
-                }}
-                onDragLeave={() => setDragOver(false)}
-                onDrop={handleCoverDrop}
-              >
-                {!coverPreview && (
-                  <span className="cover-picker-hint">
-                    <ImageIcon width={22} height={22} />
-                    Bấm hoặc kéo ảnh vào để đặt ảnh bìa
-                  </span>
-                )}
-                {coverPreview && (
-                  <div className="cover-picker-actions">
-                    <button type="button" className="btn btn-glass btn-xs">
-                      <ImageIcon width={14} height={14} /> Đổi ảnh
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-glass btn-xs"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        removeCover()
-                      }}
-                    >
-                      <TrashIcon width={14} height={14} /> Xoá ảnh
-                    </button>
-                  </div>
-                )}
+              <div className="cover-row">
+                <div className="cover-slot">
+                  <CoverPicker
+                    preview={images.cover.preview}
+                    placeholder={gameGradient(title || 'game')}
+                    hint="Ảnh bìa ngang · bấm hoặc kéo ảnh vào"
+                    onPick={() => pickImage('cover')}
+                    onDropFile={(path) => dropImage('cover', path)}
+                    onRemove={() => removeImage('cover')}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-xs"
+                    onClick={() => setCoverSearchKind('grid')}
+                  >
+                    <SearchIcon width={14} height={14} /> Tìm ảnh ngang online
+                  </button>
+                </div>
+                <div className="cover-slot poster-slot">
+                  <CoverPicker
+                    className="poster"
+                    preview={images.poster.preview}
+                    placeholder={gameGradient(title || 'game')}
+                    hint="Ảnh dọc 2:3"
+                    onPick={() => pickImage('poster')}
+                    onDropFile={(path) => dropImage('poster', path)}
+                    onRemove={() => removeImage('poster')}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-xs"
+                    onClick={() => setCoverSearchKind('poster')}
+                  >
+                    <SearchIcon width={14} height={14} /> Tìm online
+                  </button>
+                </div>
               </div>
-
-              <div className="cover-toolbar">
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-xs"
-                  onClick={() => setShowCoverSearch(true)}
-                >
-                  <SearchIcon width={14} height={14} /> Tìm ảnh online
-                </button>
-                <span className="field-hint">
-                  Ảnh từ SteamGridDB, bạn chọn và xác nhận trước khi dùng
-                </span>
-              </div>
+              <span className="field-hint cover-row-hint">
+                Ảnh dọc dùng cho lưới ảnh bìa trong Kho game. Ảnh online lấy từ SteamGridDB, bạn
+                chọn và xác nhận trước khi dùng.
+              </span>
 
               <div className="field">
                 <label className="field-label" htmlFor="game-title">
@@ -366,14 +407,32 @@ export function GameFormModal({
                   <>
                     <input
                       className="input"
-                      placeholder="App ID (vd: 730) hoặc steam://rungameid/730"
+                      placeholder="Để trống để tự tìm theo tên game, hoặc nhập App ID (vd: 730)"
                       value={steamInput}
                       onChange={(e) => setSteamInput(e.target.value)}
                     />
-                    <span className="field-hint">
-                      App ID nằm trong link trang Steam của game: store.steampowered.com/app/
-                      <strong>730</strong>/...
-                    </span>
+                    {lookup?.status === 'searching' && (
+                      <span className="field-hint">Đang tìm “{lookup.title}” trên Steam...</span>
+                    )}
+                    {lookup?.status === 'found' && (
+                      <span className="field-hint steam-match">
+                        ✓ Tự nhận diện: <strong>{lookup.match.name}</strong> · App ID{' '}
+                        {lookup.match.appId}
+                        {lookup.match.installed && ' · đã cài trên máy'}
+                      </span>
+                    )}
+                    {lookup?.status === 'notfound' && (
+                      <span className="field-hint steam-miss">
+                        Không tìm thấy “{lookup.title}” trên Steam. Kiểm tra lại tên (tên tiếng Anh
+                        trên Steam) hoặc nhập App ID.
+                      </span>
+                    )}
+                    {!lookup && (
+                      <span className="field-hint">
+                        App ID nằm trong link trang Steam của game: store.steampowered.com/app/
+                        <strong>730</strong>/...
+                      </span>
+                    )}
                   </>
                 )}
               </div>
@@ -451,16 +510,15 @@ export function GameFormModal({
           </>
         )}
 
-        {showCoverSearch && (
+        {coverSearchKind && (
           <CoverSearchModal
             initialQuery={title}
-            steamAppId={
-              mode === 'steam' ? (toSteamUri(steamInput)?.match(/(\d+)$/)?.[1] ?? null) : null
-            }
+            initialKind={coverSearchKind}
+            steamAppId={steamAppId}
             onClose={closeCoverSearch}
-            onSelect={(path, preview) => {
-              applyCover(path, preview)
-              setShowCoverSearch(false)
+            onSelect={(path, preview, target) => {
+              applyImage(target, path, preview)
+              setCoverSearchKind(null)
             }}
           />
         )}

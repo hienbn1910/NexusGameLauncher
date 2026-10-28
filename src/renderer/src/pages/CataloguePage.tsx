@@ -1,10 +1,29 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { GameCard } from '../components/GameCard'
-import { PlusIcon, SearchIcon, StarIcon, XIcon } from '../components/Icons'
+import { GamePoster } from '../components/GamePoster'
+import {
+  CardsIcon,
+  PlusIcon,
+  PosterGridIcon,
+  SearchIcon,
+  StarIcon,
+  XIcon
+} from '../components/Icons'
 import { GENRES } from '../constants/genres'
 import { useFocusShortcut } from '../hooks/useFocusShortcut'
 
 type SortKey = 'title' | 'recent' | 'playtime'
+// posters: lưới ảnh bìa dọc kiểu Steam, cards: thẻ game ngang
+type ViewMode = 'posters' | 'cards'
+
+const VIEW_KEY = 'catalogue.view'
+const POSTER_SIZE_KEY = 'catalogue.posterSize'
+const POSTER_SIZE = { min: 110, max: 240, default: 160 }
+
+function loadPosterSize(): number {
+  const saved = Number(localStorage.getItem(POSTER_SIZE_KEY))
+  return saved >= POSTER_SIZE.min && saved <= POSTER_SIZE.max ? saved : POSTER_SIZE.default
+}
 
 interface CataloguePageProps {
   games: Game[]
@@ -31,6 +50,10 @@ export function CataloguePage({
   const [genre, setGenre] = useState<string | null>(null)
   const [favoriteOnly, setFavoriteOnly] = useState(false)
   const [sort, setSort] = useState<SortKey>('title')
+  const [view, setView] = useState<ViewMode>(() =>
+    localStorage.getItem(VIEW_KEY) === 'cards' ? 'cards' : 'posters'
+  )
+  const [posterSize, setPosterSize] = useState(loadPosterSize)
   const searchRef = useRef<HTMLInputElement>(null)
   useFocusShortcut(searchRef)
 
@@ -78,6 +101,16 @@ export function CataloguePage({
     onSearchChange('')
     setGenre(null)
     setFavoriteOnly(false)
+  }
+
+  const changeView = (next: ViewMode): void => {
+    setView(next)
+    localStorage.setItem(VIEW_KEY, next)
+  }
+
+  const changePosterSize = (size: number): void => {
+    setPosterSize(size)
+    localStorage.setItem(POSTER_SIZE_KEY, String(size))
   }
 
   return (
@@ -157,9 +190,55 @@ export function CataloguePage({
             Xoá bộ lọc
           </button>
         )}
+
+        <div className="view-controls">
+          {view === 'posters' && (
+            <input
+              type="range"
+              className="size-slider"
+              title="Kích thước ảnh bìa"
+              min={POSTER_SIZE.min}
+              max={POSTER_SIZE.max}
+              step={10}
+              value={posterSize}
+              onChange={(e) => changePosterSize(Number(e.target.value))}
+            />
+          )}
+          <div className="segmented">
+            <button
+              className={view === 'posters' ? 'active' : ''}
+              title="Lưới ảnh bìa"
+              onClick={() => changeView('posters')}
+            >
+              <PosterGridIcon width={15} height={15} />
+            </button>
+            <button
+              className={view === 'cards' ? 'active' : ''}
+              title="Thẻ game"
+              onClick={() => changeView('cards')}
+            >
+              <CardsIcon width={15} height={15} />
+            </button>
+          </div>
+        </div>
       </div>
 
-      {filteredGames.length > 0 ? (
+      {filteredGames.length > 0 && view === 'posters' ? (
+        <div
+          className="poster-grid"
+          style={{ '--poster-width': `${posterSize}px` } as React.CSSProperties}
+        >
+          {filteredGames.map((game) => (
+            <GamePoster
+              key={game.id}
+              game={game}
+              onSelect={onSelectGame}
+              onEdit={onEditGame}
+              onToggleFavorite={onToggleFavorite}
+            />
+          ))}
+        </div>
+      ) : filteredGames.length > 0 ? (
         <div className="game-grid">
           {filteredGames.map((game) => (
             <GameCard

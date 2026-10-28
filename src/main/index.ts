@@ -7,6 +7,7 @@ import { registerGameHandlers } from './ipc/games.ipc'
 import { registerSteamGridDbHandlers } from './ipc/steamgriddb.ipc'
 import { initDatabase } from './database'
 import { registerMediaProtocol, registerMediaScheme } from './services/cover.service'
+import { autoFetchAllArt } from './services/steam-art.service'
 import { cleanupTempDownloads } from './services/steamgriddb.service'
 
 // Scheme game-media:// (ảnh bìa) phải đăng ký trước khi app ready
@@ -31,7 +32,12 @@ function createWindow(): void {
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
-  })  
+  })
+
+  // Giao diện đã sẵn sàng nhận sự kiện: tự tìm ảnh Steam cho game còn thiếu ảnh
+  mainWindow.webContents.once('did-finish-load', () => {
+    void autoFetchAllArt()
+  })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url)

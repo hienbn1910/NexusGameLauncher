@@ -1,5 +1,6 @@
 import { useLauncher } from '../hooks/useLauncher'
 import { coverUrl, formatPlaytime, gameGradient, gameInitials } from '../utils/gameArt'
+import { GameIconArt } from './GameIconArt'
 import { ClockIcon, PencilIcon, PlayIcon, StarIcon } from './Icons'
 
 interface GameCardProps {
@@ -32,7 +33,11 @@ export function GameCard({
         {cover ? (
           <img className="game-card-cover" src={cover} alt="" draggable={false} />
         ) : (
-          <span className="game-card-initials">{gameInitials(game.title)}</span>
+          <GameIconArt
+            game={game}
+            className="card-icon"
+            fallback={<span className="game-card-initials">{gameInitials(game.title)}</span>}
+          />
         )}
 
         <div className="game-card-actions">

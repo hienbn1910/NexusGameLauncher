@@ -20,17 +20,28 @@ export function gameAccent(title: string): string {
 }
 
 // URL ảnh bìa qua giao thức riêng game-media:// (main process phục vụ file trong thư mục covers)
-export function coverUrl(game: Pick<Game, 'cover_path'>): string | null {
-  if (!game.cover_path) return null
-  const fileName = game.cover_path.split(/[\\/]/).pop() ?? ''
+function mediaUrl(path: string | null): string | null {
+  if (!path) return null
+  const fileName = path.split(/[\\/]/).pop() ?? ''
   return `game-media://cover/${encodeURIComponent(fileName)}`
 }
 
-// Icon của file exe game; null với game Steam (không có file exe để đọc icon)
-// Thêm exe_path vào query để icon tự cập nhật khi đổi file chạy game
-export function iconUrl(game: Pick<Game, 'id' | 'exe_path'>): string | null {
+export function coverUrl(game: Pick<Game, 'cover_path'>): string | null {
+  return mediaUrl(game.cover_path)
+}
+
+// Ảnh bìa dọc 2:3 cho lưới kiểu Steam (file nằm chung thư mục covers)
+export function posterUrl(game: Pick<Game, 'poster_path'>): string | null {
+  return mediaUrl(game.poster_path)
+}
+
+// Icon của game: lấy từ exe tiến trình game, không có thì từ file launcher.
+// null với game Steam (không có file exe để đọc icon).
+// Thêm đường dẫn + tên tiến trình vào query để icon tự cập nhật khi đổi một trong hai
+export function iconUrl(game: Pick<Game, 'id' | 'exe_path' | 'process_name'>): string | null {
   if (/^steam:\/\//i.test(game.exe_path.trim())) return null
-  return `game-media://icon/${game.id}?v=${encodeURIComponent(game.exe_path)}`
+  const version = `${game.exe_path}|${game.process_name ?? ''}`
+  return `game-media://icon/${game.id}?v=${encodeURIComponent(version)}`
 }
 
 export function gameInitials(title: string): string {

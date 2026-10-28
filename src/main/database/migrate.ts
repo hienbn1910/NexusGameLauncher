@@ -35,4 +35,14 @@ export function runMigrations() {
   if (!has('process_name')) {
     db.exec('ALTER TABLE games ADD COLUMN process_name TEXT')
   }
+
+  // Ảnh bìa dọc (tỉ lệ 2:3) cho chế độ lưới kiểu Steam
+  if (!has('poster_path')) {
+    db.exec('ALTER TABLE games ADD COLUMN poster_path TEXT')
+  }
+
+  // Lần tự tìm ảnh Steam gần nhất (tên + đường dẫn lúc tìm) để không tìm lại khi không có gì đổi
+  if (!has('art_lookup')) {
+    db.exec('ALTER TABLE games ADD COLUMN art_lookup TEXT')
+  }
 }

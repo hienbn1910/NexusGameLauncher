@@ -6,19 +6,25 @@ import { SaveIcon, SearchIcon, XIcon } from './Icons'
 interface CoverSearchModalProps {
   initialQuery: string
   steamAppId?: string | null
+  initialKind?: SgdbImageKind
   onClose: () => void
   // Ảnh đã tải về file tạm, form sẽ dùng như ảnh chọn từ máy
-  onSelect: (path: string, preview: string) => void
+  // target: ảnh dọc => poster, ảnh ngang/banner => cover
+  onSelect: (path: string, preview: string, target: CoverKind) => void
 }
 
 const KIND_LABEL: Record<SgdbImageKind, string> = {
+  poster: 'Ảnh dọc',
   grid: 'Ảnh ngang',
   hero: 'Ảnh banner'
 }
 
+const KINDS: SgdbImageKind[] = ['poster', 'grid', 'hero']
+
 export function CoverSearchModal({
   initialQuery,
   steamAppId,
+  initialKind = 'grid',
   onClose,
   onSelect
 }: CoverSearchModalProps): React.JSX.Element {
@@ -33,7 +39,7 @@ export function CoverSearchModal({
 
   // Bước 2: chọn ảnh
   const [selectedGame, setSelectedGame] = useState<SgdbGame | null>(null)
-  const [kind, setKind] = useState<SgdbImageKind>('grid')
+  const [kind, setKind] = useState<SgdbImageKind>(initialKind)
   const [images, setImages] = useState<SgdbImage[]>([])
   const [page, setPage] = useState(0)
   const [hasMore, setHasMore] = useState(false)
@@ -122,7 +128,7 @@ export function CoverSearchModal({
     const result = await api.download(image.url)
     setDownloading(false)
     if (!result.ok) return setError(result.error)
-    onSelect(result.data.path, result.data.preview)
+    onSelect(result.data.path, result.data.preview, kind === 'poster' ? 'poster' : 'cover')
   }
 
   // Kết quả khớp Steam App ID đứng đầu, bỏ trùng trong danh sách tìm theo tên
@@ -182,7 +188,7 @@ export function CoverSearchModal({
         </button>
         <strong className="sgdb-selected-game">{game.name}</strong>
         <div className="segmented">
-          {(['grid', 'hero'] as SgdbImageKind[]).map((k) => (
+          {KINDS.map((k) => (
             <button
               key={k}
               type="button"
@@ -218,7 +224,7 @@ export function CoverSearchModal({
       {loadingImages && <p className="sgdb-empty">Đang tải ảnh...</p>}
       {!loadingImages && images.length === 0 && (
         <p className="sgdb-empty">
-          Game này chưa có {KIND_LABEL[kind].toLowerCase()}. Thử loại ảnh còn lại.
+          Game này chưa có {KIND_LABEL[kind].toLowerCase()}. Thử loại ảnh khác.
         </p>
       )}
       {!loadingImages && hasMore && images.length > 0 && (

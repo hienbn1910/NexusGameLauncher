@@ -38,14 +38,14 @@ export function parseProcessNames(value: string): string[] {
 const MAX_DEPTH = 4
 const MAX_ENTRIES = 5000
 
-// Quét thư mục cài game để lấy tên các file .exe (launcher, game, ...).
+// Quét thư mục cài game, trả về Map tên exe (viết thường) => đường dẫn đầy đủ (file gặp đầu tiên).
 // Giới hạn độ sâu và số file để không bị treo khi exe nằm ở thư mục quá lớn.
-export async function collectExeNames(rootDir: string): Promise<Set<string>> {
-  const names = new Set<string>()
+async function scanExeFiles(rootDir: string, maxDepth = MAX_DEPTH): Promise<Map<string, string>> {
+  const files = new Map<string, string>()
   let visited = 0
 
   async function walk(dir: string, depth: number): Promise<void> {
-    if (depth > MAX_DEPTH || visited > MAX_ENTRIES) return
+    if (depth > maxDepth || visited > MAX_ENTRIES) return
     let entries
     try {
       entries = await readdir(dir, { withFileTypes: true })
@@ -54,11 +54,28 @@ export async function collectExeNames(rootDir: string): Promise<Set<string>> {
     }
     for (const entry of entries) {
       if (++visited > MAX_ENTRIES) return
-      if (entry.isDirectory()) await walk(join(dir, entry.name), depth + 1)
-      else if (entry.name.toLowerCase().endsWith('.exe')) names.add(entry.name.toLowerCase())
+      const fullPath = join(dir, entry.name)
+      if (entry.isDirectory()) await walk(fullPath, depth + 1)
+      else if (entry.name.toLowerCase().endsWith('.exe')) {
+        const name = entry.name.toLowerCase()
+        if (!files.has(name)) files.set(name, fullPath)
+      }
     }
   }
 
   await walk(rootDir, 0)
-  return names
+  return files
+}
+
+export async function collectExeNames(rootDir: string): Promise<Set<string>> {
+  return new Set((await scanExeFiles(rootDir)).keys())
+}
+
+// Tìm đường dẫn file exe theo tên (vd "game.exe") trong thư mục cài game
+export async function findExeFile(
+  rootDir: string,
+  name: string,
+  maxDepth = MAX_DEPTH
+): Promise<string | null> {
+  return (await scanExeFiles(rootDir, maxDepth)).get(name.toLowerCase()) ?? null
 }

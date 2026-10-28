@@ -21,6 +21,7 @@ declare global {
     source_id: string | null
     genre: string | null
     cover_path: string | null
+    poster_path: string | null
     is_favorite: number
     total_playtime: number
     last_played: string | null
@@ -38,7 +39,10 @@ declare global {
   // Kết quả gọi SteamGridDB: lỗi được trả về dạng message thay vì throw
   type ApiResult<T> = { ok: true; data: T } | { ok: false; error: string }
 
-  type SgdbImageKind = 'grid' | 'hero'
+  type SgdbImageKind = 'poster' | 'grid' | 'hero'
+
+  // cover: ảnh ngang, poster: ảnh dọc 2:3
+  type CoverKind = 'cover' | 'poster'
 
   interface SgdbGame {
     id: number
@@ -57,6 +61,12 @@ declare global {
     author: string | null
   }
 
+  interface SteamAppMatch {
+    appId: string
+    name: string
+    installed: boolean // Tìm thấy trong thư viện Steam trên máy
+  }
+
   interface NameSuggestion {
     name: string
     source: 'metadata' | 'folder' | 'file'
@@ -71,13 +81,19 @@ declare global {
       delete: (id: string) => Promise<boolean>
       selectExe: () => Promise<string | null>
       inspectExe: (exePath: string) => Promise<{ suggestions: NameSuggestion[] }>
+      findSteamApp: (title: string) => Promise<SteamAppMatch | null>
       selectCover: () => Promise<{ path: string; preview: string } | null>
       previewCover: (imagePath: string) => Promise<string | null>
-      setCover: (id: string, imagePath: string | null) => Promise<Game | undefined>
+      setCover: (
+        id: string,
+        imagePath: string | null,
+        kind?: CoverKind
+      ) => Promise<Game | undefined>
       getPathForFile: (file: File) => string
       launch: (id: string) => Promise<LaunchResult>
       getRunning: () => Promise<string[]>
       onSessionChanged: (callback: (event: GameSessionEvent) => void) => () => void
+      onUpdated: (callback: (game: Game) => void) => () => void
     }
     steamGridDb: {
       isConfigured: () => Promise<boolean>
