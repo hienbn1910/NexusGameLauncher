@@ -22,13 +22,15 @@ interface FeaturedBannerProps {
   rotation: Game[]
   onFeature: (game: Game) => void
   onEdit: (game: Game) => void
+  onOpen: (game: Game) => void // Mở trang chi tiết game
 }
 
 export function FeaturedBanner({
   game,
   rotation,
   onFeature,
-  onEdit
+  onEdit,
+  onOpen
 }: FeaturedBannerProps): React.JSX.Element {
   const cover = coverUrl(game)
   const logo = logoUrl(game)
@@ -109,8 +111,11 @@ export function FeaturedBanner({
         </div>
         <div className="featured-actions">
           <PlayButton game={game} label={game.last_played ? 'Tiếp tục chơi' : 'Chơi ngay'} />
-          <button className="btn btn-glass" onClick={() => onEdit(game)}>
-            <PencilIcon width={16} height={16} /> Sửa
+          <button className="btn btn-glass" onClick={() => onOpen(game)}>
+            Xem chi tiết
+          </button>
+          <button className="btn btn-glass" onClick={() => onEdit(game)} title="Sửa game">
+            <PencilIcon width={16} height={16} />
           </button>
         </div>
       </div>

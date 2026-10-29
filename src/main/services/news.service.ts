@@ -233,7 +233,17 @@ function toNewsItem(
   }
 }
 
-async function collectGoogle(target: Target, force: boolean): Promise<Collected> {
+interface Limits {
+  steam: number
+  lang: number
+}
+const DEFAULT_LIMITS: Limits = { steam: PER_GAME, lang: PER_LANG }
+
+async function collectGoogle(
+  target: Target,
+  force: boolean,
+  limits = DEFAULT_LIMITS
+): Promise<Collected> {
   const out: Collected = { items: [], fetchedAt: null, stale: false }
   for (const lang of ['vi', 'en'] as NewsLang[]) {
     try {
@@ -245,7 +255,7 @@ async function collectGoogle(target: Target, force: boolean): Promise<Collected>
           .filter((i) => i.date >= daysAgo(PRESS_MAX_AGE_DAYS))
           .sort((a, b) => b.date - a.date)
           // Mỗi ngôn ngữ vài tin để luôn có cả tin tiếng Việt lẫn tiếng Anh
-          .slice(0, PER_LANG)
+          .slice(0, limits.lang)
           .map((i) =>
             toNewsItem(
               i,
@@ -268,7 +278,11 @@ async function collectGoogle(target: Target, force: boolean): Promise<Collected>
   return out
 }
 
-async function collectTarget(target: Target, force: boolean): Promise<Collected> {
+async function collectTarget(
+  target: Target,
+  force: boolean,
+  limits = DEFAULT_LIMITS
+): Promise<Collected> {
   if (target.appId && !isSteamBlocked()) {
     try {
       const feed = await loadFeed(steamFeed(target.appId), force)
@@ -276,7 +290,7 @@ async function collectTarget(target: Target, force: boolean): Promise<Collected>
       const header = `https://cdn.cloudflare.steamstatic.com/steam/apps/${target.appId}/header.jpg`
       const items = feed.items
         .filter((i) => i.date >= daysAgo(STEAM_MAX_AGE_DAYS))
-        .slice(0, PER_GAME)
+        .slice(0, limits.steam)
         .map((i) =>
           toNewsItem(
             i,
@@ -297,7 +311,7 @@ async function collectTarget(target: Target, force: boolean): Promise<Collected>
       if (err instanceof NetworkError) markSteamBlocked()
     }
   }
-  return collectGoogle(target, force)
+  return collectGoogle(target, force, limits)
 }
 
 // ---------- Theo dõi & trang báo ----------
@@ -391,6 +405,18 @@ async function libraryTargets(): Promise<Target[]> {
     )
     .slice(0, MAX_TARGETS)
     .map((g) => ({ name: g.title, appId: g.steam_app_id, gameId: g.id }))
+}
+
+// Tin của một game (trang chi tiết game): lấy nhiều hơn so với trang chủ
+export async function getGameNews(gameId: string, force = false): Promise<NewsResult> {
+  const game = gameService.getGameById(gameId)
+  if (!game) return finish([])
+  const target: Target = {
+    name: game.title,
+    appId: game.steam_app_id ?? game.source_id,
+    gameId: game.id
+  }
+  return finish([await collectTarget(target, force, { steam: 12, lang: 6 })])
 }
 
 export async function getNews(tab: NewsTab, force = false): Promise<NewsResult> {

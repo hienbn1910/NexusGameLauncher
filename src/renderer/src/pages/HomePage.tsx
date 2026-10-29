@@ -147,6 +147,7 @@ export function HomePage({
           rotation={rotation}
           onFeature={onFeature}
           onEdit={onEditGame}
+          onOpen={onSelectGame}
         />
       )}
 
@@ -217,7 +218,7 @@ export function HomePage({
           onClose={() => setShowPicker(false)}
           onSelect={(g) => {
             setShowPicker(false)
-            onFeature(g)
+            onSelectGame(g)
           }}
         />
       )}

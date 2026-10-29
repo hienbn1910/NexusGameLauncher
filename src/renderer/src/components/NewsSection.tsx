@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { coverUrl, formatRelative, gameGradient } from '../utils/gameArt'
 import { FollowGameModal } from './FollowGameModal'
 import { PlusIcon } from './Icons'
+import { NewsCard } from './NewsCard'
 import { Shelf } from './Shelf'
 
 interface NewsSectionProps {
@@ -25,28 +25,6 @@ const EMPTY_TEXT: Record<NewsTab, string> = {
 
 const timeOf = (ms: number): string =>
   new Date(ms).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
-
-// Ảnh tin tức; lỗi (bị chặn, ảnh hỏng) thì dùng ảnh bìa game trên máy hoặc nền gradient
-function NewsImage({ item, game }: { item: NewsItem; game?: Game }): React.JSX.Element {
-  const [failed, setFailed] = useState(false)
-  const fallback = game ? coverUrl(game) : null
-  const src = !failed && item.image ? item.image : fallback
-
-  return (
-    <span className="news-image" style={{ background: gameGradient(item.gameName ?? item.title) }}>
-      {src && (
-        <img
-          src={src}
-          alt=""
-          loading="lazy"
-          draggable={false}
-          onError={() => (src === fallback ? undefined : setFailed(true))}
-        />
-      )}
-      {item.isPatch && <span className="news-tag">Cập nhật</span>}
-    </span>
-  )
-}
 
 // Tin tức game: 3 tab, đọc RSS ở main process (Steam / Google News / trang báo)
 export function NewsSection({
@@ -169,23 +147,11 @@ export function NewsSection({
           [0, 1, 2].map((i) => <div key={i} className="news-card news-skeleton" />)}
 
         {result?.items.map((item) => (
-          // target=_blank: main process mở link bằng trình duyệt mặc định
-          <a key={item.id} className="news-card" href={item.url} target="_blank" rel="noreferrer">
-            <NewsImage item={item} game={item.gameId ? byId.get(item.gameId) : undefined} />
-            <span className="news-body">
-              <span className="news-meta">
-                <span className={`news-origin ${item.origin}`}>
-                  {item.origin === 'steam' ? 'Steam' : item.sourceName}
-                </span>
-                {item.lang && <span className="news-lang">{item.lang.toUpperCase()}</span>}
-                {item.date > 0 && <span>{formatRelative(new Date(item.date).toISOString())}</span>}
-              </span>
-              {/* Luôn giữ chỗ cho từng dòng để mọi thẻ (ở cả 3 tab) cao bằng nhau */}
-              <span className="news-game">{item.gameName ?? ' '}</span>
-              <span className="news-title">{item.title}</span>
-              <span className="news-summary">{item.summary}</span>
-            </span>
-          </a>
+          <NewsCard
+            key={item.id}
+            item={item}
+            game={item.gameId ? byId.get(item.gameId) : undefined}
+          />
         ))}
 
         {result && result.items.length === 0 && (

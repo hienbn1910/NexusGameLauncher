@@ -20,6 +20,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getRunning: () => ipcRenderer.invoke('games:getRunning'),
     getStats: () => ipcRenderer.invoke('games:getStats'),
     getArtColor: (id: string) => ipcRenderer.invoke('games:getArtColor', id),
+    getGameStats: (id: string) => ipcRenderer.invoke('games:getGameStats', id),
+    setNotes: (id: string, notes: string) => ipcRenderer.invoke('games:setNotes', id, notes),
+    getSteamDetails: (id: string, force?: boolean) =>
+      ipcRenderer.invoke('games:getSteamDetails', id, force),
+    getInstallInfo: (id: string, withSize?: boolean) =>
+      ipcRenderer.invoke('games:getInstallInfo', id, withSize),
+    openFolder: (id: string) => ipcRenderer.invoke('games:openFolder', id),
     // Đăng ký nhận sự kiện game bắt đầu/kết thúc, trả về hàm huỷ đăng ký
     onSessionChanged: (callback: (event: unknown) => void) => {
       const listener = (_e: IpcRendererEvent, payload: unknown): void => callback(payload)
@@ -35,6 +42,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   news: {
     get: (tab: string, force?: boolean) => ipcRenderer.invoke('news:get', tab, force),
+    getGame: (gameId: string, force?: boolean) => ipcRenderer.invoke('news:getGame', gameId, force),
     getFollowing: () => ipcRenderer.invoke('news:getFollowing'),
     getSuggestions: () => ipcRenderer.invoke('news:getSuggestions'),
     follow: (name: string, appId: string | null) => ipcRenderer.invoke('news:follow', name, appId),

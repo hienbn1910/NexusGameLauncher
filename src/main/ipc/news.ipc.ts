@@ -25,6 +25,10 @@ export function registerNewsHandlers(): void {
     )
   )
 
+  ipcMain.handle('news:getGame', (_e, gameId: string, force?: boolean) =>
+    wrap(() => newsService.getGameNews(String(gameId), force === true))
+  )
+
   ipcMain.handle('news:getFollowing', () => newsService.getFollowing())
   ipcMain.handle('news:getSuggestions', () => newsService.SUGGESTED_GAMES)
   ipcMain.handle('news:follow', (_e, name: string, appId: string | null) =>

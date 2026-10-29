@@ -28,7 +28,43 @@ declare global {
     total_playtime: number
     last_played: string | null
     process_name: string | null
+    notes: string | null
     created_at: string
+  }
+
+  interface GameStats {
+    sessions: number
+    longestHours: number
+    averageHours: number
+    firstPlayed: string | null
+    share: number // 0..1
+    weeks: { start: string; hours: number }[] // 12 tuần, cũ => mới
+    recent: { startedAt: string; endedAt: string; hours: number }[]
+  }
+
+  interface SteamDetails {
+    appId: string
+    name: string
+    description: string
+    developers: string[]
+    publishers: string[]
+    releaseDate: string | null
+    genres: string[]
+    website: string | null
+    metacritic: number | null
+    screenshots: { thumb: string; full: string }[]
+    movies: { name: string; thumb: string; src: string | null }[]
+  }
+
+  interface SteamDetailsResult {
+    details: SteamDetails | null
+    stale: boolean
+    error: string | null
+  }
+
+  interface InstallInfo {
+    path: string | null
+    size: { path: string; bytes: number; files: number; partial: boolean } | null
   }
 
   type LaunchResult = { ok: true; game: Game } | { ok: false; error: string }
@@ -165,11 +201,18 @@ declare global {
       getStats: () => Promise<PlayStats>
       // Màu chủ đạo của ảnh game dạng "r, g, b"
       getArtColor: (id: string) => Promise<string | null>
+      getGameStats: (id: string) => Promise<GameStats>
+      setNotes: (id: string, notes: string) => Promise<Game | undefined>
+      getSteamDetails: (id: string, force?: boolean) => Promise<SteamDetailsResult>
+      getInstallInfo: (id: string, withSize?: boolean) => Promise<InstallInfo>
+      // null = mở được, chuỗi = thông báo lỗi
+      openFolder: (id: string) => Promise<string | null>
       onSessionChanged: (callback: (event: GameSessionEvent) => void) => () => void
       onUpdated: (callback: (game: Game) => void) => () => void
     }
     news: {
       get: (tab: NewsTab, force?: boolean) => Promise<ApiResult<NewsResult>>
+      getGame: (gameId: string, force?: boolean) => Promise<ApiResult<NewsResult>>
       getFollowing: () => Promise<FollowedGame[]>
       getSuggestions: () => Promise<FollowedGame[]>
       follow: (name: string, appId: string | null) => Promise<ApiResult<FollowedGame[]>>

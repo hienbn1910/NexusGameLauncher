@@ -74,6 +74,24 @@ export function formatRelative(iso: string | null, now = Date.now()): string {
   return new Date(iso).toLocaleDateString('vi-VN')
 }
 
+// "2026-10-27" => Date theo giờ máy (không dùng new Date(str) vì sẽ bị hiểu là UTC)
+export function parseDay(date: string): Date {
+  const [y, m, d] = date.split('-').map(Number)
+  return new Date(y, m - 1, d)
+}
+
+// 1536 => "1.5 KB", 5368709120 => "5 GB"
+export function formatBytes(bytes: number): string {
+  const units = ['B', 'KB', 'MB', 'GB', 'TB']
+  let value = bytes
+  let unit = 0
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024
+    unit++
+  }
+  return `${unit === 0 ? value : value.toFixed(1).replace(/\.0$/, '')} ${units[unit]}`
+}
+
 // Đồng hồ phiên chơi: 42:15 hoặc 1:42:15
 export function formatClock(ms: number): string {
   const total = Math.max(0, Math.floor(ms / 1000))

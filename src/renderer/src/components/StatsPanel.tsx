@@ -1,6 +1,6 @@
-import { useState } from 'react'
 import { useNow } from '../hooks/useNow'
-import { formatHours } from '../utils/gameArt'
+import { formatHours, parseDay } from '../utils/gameArt'
+import { BarChart } from './BarChart'
 
 interface StatsPanelProps {
   stats: PlayStats | null
@@ -18,22 +18,14 @@ function greeting(hour: number): string {
   return 'Chào buổi tối'
 }
 
-// "2026-10-27" => Date theo giờ máy (không dùng new Date(str) vì sẽ bị hiểu là UTC)
-function parseDay(date: string): Date {
-  const [y, m, d] = date.split('-').map(Number)
-  return new Date(y, m - 1, d)
-}
-
 // Câu chào + 3 ô số liệu + biểu đồ giờ chơi 7 ngày
 export function StatsPanel({ stats, games, onSelectGame }: StatsPanelProps): React.JSX.Element {
   // Cập nhật câu chào mỗi phút
   const now = useNow(60_000)
-  const [hovered, setHovered] = useState<number | null>(null)
 
   const week = stats?.days.slice(7) ?? []
   const weekHours = stats?.weekHours ?? 0
   const prevHours = stats?.prevWeekHours ?? 0
-  const maxHours = Math.max(...week.map((d) => d.hours), 0.5)
   const topGame = stats?.topGame ? games.find((g) => g.id === stats.topGame!.gameId) : undefined
   const hasData = week.some((d) => d.hours > 0) || prevHours > 0
 
@@ -89,36 +81,28 @@ export function StatsPanel({ stats, games, onSelectGame }: StatsPanelProps): Rea
         </button>
       </div>
 
-      <div className="stats-chart" aria-label="Giờ chơi 7 ngày gần nhất">
+      <div className="stats-chart">
         <span className="stat-label">Giờ chơi 7 ngày</span>
-        <div className="chart-bars" onMouseLeave={() => setHovered(null)}>
-          {week.map((d, i) => {
+        <BarChart
+          ariaLabel="Giờ chơi 7 ngày gần nhất"
+          bars={week.map((d, i) => {
             const date = parseDay(d.date)
             const isToday = i === week.length - 1
-            const height = d.hours > 0 ? Math.max(4, (d.hours / maxHours) * 100) : 0
-            return (
-              <div
-                key={d.date}
-                className={`chart-col ${hovered === i ? 'hovered' : ''}`}
-                onMouseEnter={() => setHovered(i)}
-              >
-                {hovered === i && (
-                  <span className="chart-tooltip">
-                    <strong>{formatHours(d.hours)}</strong>
-                    {isToday ? 'Hôm nay' : WEEKDAY_NAMES[date.getDay()]},{' '}
-                    {date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })}
-                  </span>
-                )}
-                <div className="chart-track">
-                  <div className="chart-bar" style={{ height: `${height}%` }} />
-                </div>
-                <span className={`chart-label ${isToday ? 'today' : ''}`}>
-                  {isToday ? 'Nay' : WEEKDAYS[date.getDay()]}
-                </span>
-              </div>
-            )
+            return {
+              key: d.date,
+              label: isToday ? 'Nay' : WEEKDAYS[date.getDay()],
+              value: d.hours,
+              highlight: isToday,
+              tooltip: (
+                <>
+                  <strong>{formatHours(d.hours)}</strong>
+                  {isToday ? 'Hôm nay' : WEEKDAY_NAMES[date.getDay()]},{' '}
+                  {date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })}
+                </>
+              )
+            }
           })}
-        </div>
+        />
       </div>
     </section>
   )

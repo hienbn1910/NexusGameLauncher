@@ -17,6 +17,8 @@ interface GameFormModalProps {
   onClose: () => void
   onSaved: (game: Game) => void
   onDeleted?: (id: string) => void
+  // Mở thẳng bước xác nhận xoá (từ menu chuột phải)
+  startWithDelete?: boolean
 }
 
 type LaunchMode = 'file' | 'steam'
@@ -52,7 +54,8 @@ export function GameFormModal({
   game,
   onClose,
   onSaved,
-  onDeleted
+  onDeleted,
+  startWithDelete = false
 }: GameFormModalProps): React.JSX.Element {
   const isEdit = !!game
   const [title, setTitle] = useState(game?.title ?? '')
@@ -76,7 +79,7 @@ export function GameFormModal({
   // Tự tìm Steam App ID theo tên game khi để trống ô App ID (title = tên lúc tìm)
   const [steamLookup, setSteamLookup] = useState<SteamLookup | null>(null)
   const [submitting, setSubmitting] = useState(false)
-  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(startWithDelete && !!game)
   const [error, setError] = useState<string | null>(null)
 
   const closeCoverSearch = useCallback(() => setCoverSearchKind(null), [])

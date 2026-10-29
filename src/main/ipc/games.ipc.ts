@@ -2,7 +2,9 @@ import { BrowserWindow, dialog, ipcMain } from 'electron'
 import * as coverService from '../services/cover.service'
 import * as exeMetadataService from '../services/exe-metadata.service'
 import * as gameService from '../services/game.service'
+import * as gameFilesService from '../services/game-files.service'
 import * as launcherService from '../services/launcher.service'
+import * as steamDetailsService from '../services/steam-details.service'
 import * as steamArtService from '../services/steam-art.service'
 
 export function registerGameHandlers() {
@@ -108,6 +110,36 @@ export function registerGameHandlers() {
 
   ipcMain.handle('games:getArtColor', (_event, id: string) => {
     return coverService.getArtColor(id)
+  })
+
+  // ---------- Trang chi tiết game ----------
+
+  ipcMain.handle('games:getGameStats', (_event, id: string) => {
+    return gameService.getGameStats(String(id))
+  })
+
+  ipcMain.handle('games:setNotes', (_event, id: string, notes: string) => {
+    return gameService.setNotes(String(id), String(notes ?? ''))
+  })
+
+  ipcMain.handle('games:getSteamDetails', (_event, id: string, force?: boolean) => {
+    return steamDetailsService.getSteamDetails(String(id), force === true)
+  })
+
+  ipcMain.handle('games:getInstallInfo', async (_event, id: string, withSize?: boolean) => {
+    const path = await gameFilesService.getInstallDir(String(id))
+    const size = withSize ? await gameFilesService.getFolderSize(String(id)) : null
+    return { path, size }
+  })
+
+  // Lỗi trả về dạng chuỗi để giao diện hiện thông báo
+  ipcMain.handle('games:openFolder', async (_event, id: string) => {
+    try {
+      await gameFilesService.openInstallDir(String(id))
+      return null
+    } catch (err) {
+      return err instanceof Error ? err.message : 'Không mở được thư mục game'
+    }
   })
 
   ipcMain.handle('games:getStats', () => {

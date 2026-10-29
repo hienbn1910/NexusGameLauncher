@@ -114,6 +114,22 @@ async function steamappsDirs(): Promise<string[]> {
   return [...new Map(dirs.map((d) => [d.toLowerCase(), d])).values()]
 }
 
+// Thư mục cài của game Steam (steamapps\common\<installdir>), null nếu chưa cài
+export async function steamInstallDir(appId: string): Promise<string | null> {
+  if (!/^\d+$/.test(appId)) return null
+  for (const dir of await steamappsDirs()) {
+    try {
+      const content = await readFile(join(dir, `appmanifest_${appId}.acf`), 'utf8')
+      const installDir = content.match(/"installdir"\s+"([^"]+)"/i)?.[1]
+      const path = installDir ? join(dir, 'common', installDir) : null
+      if (path && existsSync(path)) return path
+    } catch {
+      // Không có trong thư viện này
+    }
+  }
+  return null
+}
+
 // Game Steam đã cài trên máy (đọc appmanifest_*.acf, không cần mạng)
 async function installedSteamApps(): Promise<SteamApp[]> {
   const apps: SteamApp[] = []

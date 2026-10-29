@@ -1,18 +1,25 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useLauncher } from '../hooks/useLauncher'
+import { ContextMenu, type MenuItem } from './ContextMenu'
 import { GameThumb } from './GameThumb'
 import {
   DownloadIcon,
+  FolderIcon,
   GearIcon,
   GridIcon,
   HelpIcon,
   HomeIcon,
+  PencilIcon,
+  PlayIcon,
   PlusIcon,
+  StarIcon,
+  TrashIcon,
   UsersIcon,
   type IconComponent
 } from './Icons'
 
-export type PageKey = 'home' | 'catalogue' | 'downloads' | 'settings'
+// 'game' = trang chi tiết game (không có trong menu điều hướng)
+export type PageKey = 'home' | 'catalogue' | 'downloads' | 'settings' | 'game'
 
 const NAV_ITEMS: { key: PageKey; label: string; icon: IconComponent }[] = [
   { key: 'home', label: 'Trang chủ', icon: HomeIcon },
@@ -28,6 +35,10 @@ interface SidebarProps {
   selectedGameId: string | null
   onSelectGame: (game: Game) => void
   onAddGame: () => void
+  onEditGame: (game: Game) => void
+  onDeleteGame: (game: Game) => void
+  onToggleFavorite: (game: Game) => void
+  onOpenFolder: (game: Game) => void
 }
 
 export function Sidebar({
@@ -36,10 +47,35 @@ export function Sidebar({
   games,
   selectedGameId,
   onSelectGame,
-  onAddGame
+  onAddGame,
+  onEditGame,
+  onDeleteGame,
+  onToggleFavorite,
+  onOpenFolder
 }: SidebarProps): React.JSX.Element {
   const [filter, setFilter] = useState('')
-  const { runningIds } = useLauncher()
+  const { runningIds, launch } = useLauncher()
+  const [menu, setMenu] = useState<{ game: Game; x: number; y: number } | null>(null)
+  const closeMenu = useCallback(() => setMenu(null), [])
+
+  const menuItems = (game: Game): (MenuItem | 'divider')[] => [
+    {
+      label: runningIds.has(game.id) ? 'Đang chạy' : 'Chơi',
+      icon: PlayIcon,
+      disabled: runningIds.has(game.id),
+      onClick: () => launch(game)
+    },
+    { label: 'Xem chi tiết', icon: GridIcon, onClick: () => onSelectGame(game) },
+    {
+      label: game.is_favorite === 1 ? 'Bỏ yêu thích' : 'Yêu thích',
+      icon: StarIcon,
+      onClick: () => onToggleFavorite(game)
+    },
+    { label: 'Sửa game', icon: PencilIcon, onClick: () => onEditGame(game) },
+    { label: 'Mở thư mục game', icon: FolderIcon, onClick: () => onOpenFolder(game) },
+    'divider',
+    { label: 'Xoá khỏi thư viện', icon: TrashIcon, danger: true, onClick: () => onDeleteGame(game) }
+  ]
 
   const filteredGames = useMemo(() => {
     const keyword = filter.trim().toLowerCase()
@@ -94,7 +130,15 @@ export function Sidebar({
             <li key={game.id}>
               <button
                 className={`library-item ${selectedGameId === game.id ? 'active' : ''}`}
+                title="Bấm: xem chi tiết · Bấm đúp: chơi · Chuột phải: thêm tuỳ chọn"
                 onClick={() => onSelectGame(game)}
+                onDoubleClick={() => {
+                  if (!runningIds.has(game.id)) launch(game)
+                }}
+                onContextMenu={(e) => {
+                  e.preventDefault()
+                  setMenu({ game, x: e.clientX, y: e.clientY })
+                }}
               >
                 <GameThumb game={game} />
                 <span className="library-title">{game.title}</span>
@@ -114,6 +158,10 @@ export function Sidebar({
         <HelpIcon />
         <span>Trợ giúp</span>
       </button>
+
+      {menu && (
+        <ContextMenu x={menu.x} y={menu.y} items={menuItems(menu.game)} onClose={closeMenu} />
+      )}
     </aside>
   )
 }

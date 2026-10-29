@@ -50,6 +50,15 @@ export function runMigrations() {
     )
   `)
 
+  // Thông tin game từ Steam (mô tả, ảnh, trailer...) để không phải tải lại mỗi lần mở trang game
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS steam_details (
+      app_id TEXT PRIMARY KEY,
+      fetched_at INTEGER NOT NULL,
+      data TEXT NOT NULL
+    )
+  `)
+
   // Thêm cột mới cho database đã tạo từ phiên bản trước
   const columns = db.prepare('PRAGMA table_info(games)').all() as { name: string }[]
   const has = (name: string): boolean => columns.some((c) => c.name === name)
@@ -77,5 +86,10 @@ export function runMigrations() {
   // Steam App ID tìm được (kể cả game không thêm qua Steam) để lấy tin tức game
   if (!has('steam_app_id')) {
     db.exec('ALTER TABLE games ADD COLUMN steam_app_id TEXT')
+  }
+
+  // Ghi chú cá nhân của người dùng cho từng game
+  if (!has('notes')) {
+    db.exec('ALTER TABLE games ADD COLUMN notes TEXT')
   }
 }

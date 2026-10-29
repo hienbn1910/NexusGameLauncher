@@ -50,7 +50,7 @@ const decodeEntities = (s: string): string =>
     .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
 
 // HTML/BBCode => đoạn văn ngắn
-export function toSummary(html: string): string {
+export function toSummary(html: string, maxLength = MAX_SUMMARY): string {
   const plain = decodeEntities(
     html
       .replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' ')
@@ -61,7 +61,7 @@ export function toSummary(html: string): string {
     .replace(/https?:\/\/\S+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
-  return plain.length > MAX_SUMMARY ? `${plain.slice(0, MAX_SUMMARY - 3).trimEnd()}...` : plain
+  return plain.length > maxLength ? `${plain.slice(0, maxLength - 3).trimEnd()}...` : plain
 }
 
 function firstImageInHtml(html: string): string | null {

@@ -7,13 +7,16 @@ import { TopBar } from './components/TopBar'
 import { LauncherContext } from './hooks/useLauncher'
 import { CataloguePage } from './pages/CataloguePage'
 import { HomePage } from './pages/HomePage'
+import { GameDetailPage } from './pages/GameDetailPage'
 import { SettingsPage } from './pages/SettingsPage'
+import { withViewTransition } from './utils/viewTransition'
 
 const PAGE_TITLES: Record<PageKey, string> = {
   home: 'Trang chủ',
   catalogue: 'Kho game',
   downloads: 'Tải xuống',
-  settings: 'Cài đặt'
+  settings: 'Cài đặt',
+  game: 'Chi tiết game'
 }
 
 // null = đóng, 'new' = thêm game, Game = sửa game đó
@@ -27,6 +30,11 @@ function App(): React.JSX.Element {
   const [search, setSearch] = useState('')
   const [featuredId, setFeaturedId] = useState<string | null>(null)
   const [form, setForm] = useState<FormState>(null)
+  // Mở form ở bước xác nhận xoá (từ menu chuột phải / trang chi tiết)
+  const [formDelete, setFormDelete] = useState(false)
+  // Trang chi tiết game: id game đang xem + trang trước đó để quay lại
+  const [detailId, setDetailId] = useState<string | null>(null)
+  const [backPage, setBackPage] = useState<PageKey>('home')
   const [runningIds, setRunningIds] = useState<Map<string, number>>(new Map())
   const [stats, setStats] = useState<PlayStats | null>(null)
   const [launchingId, setLaunchingId] = useState<string | null>(null)
@@ -96,17 +104,50 @@ function App(): React.JSX.Element {
   // Đổi game trên banner (tự xoay vòng / bấm ảnh nhỏ) mà không đổi trang
   const featureGame = useCallback((game: Game) => setFeaturedId(game.id), [])
 
-  const selectGame = (game: Game): void => {
-    setFeaturedId(game.id)
-    setPage('home')
-    // Cuộn lên đầu để thấy banner của game vừa chọn
-    document.querySelector('.content')?.scrollTo({ top: 0, behavior: 'smooth' })
+  // Mở trang chi tiết game. Từ trang khác: ảnh nhỏ ở sidebar "bay" thành ảnh lớn (View Transition);
+  // đang ở trang chi tiết: ảnh game cũ chuyển mượt sang ảnh game mới
+  const selectGame = useCallback(
+    (game: Game): void => {
+      const fromOtherPage = page !== 'game'
+      withViewTransition(
+        () => {
+          if (fromOtherPage) setBackPage(page)
+          setDetailId(game.id)
+          setPage('game')
+          document.querySelector('.content')?.scrollTo({ top: 0 })
+        },
+        () => {
+          if (!fromOtherPage) return
+          const thumb = document.querySelector<HTMLElement>(`[data-game-thumb="${game.id}"]`)
+          if (!thumb) return
+          thumb.style.viewTransitionName = 'game-hero-art'
+          return () => {
+            thumb.style.viewTransitionName = ''
+          }
+        }
+      )
+    },
+    [page]
+  )
+
+  const leaveDetail = (): void => {
+    withViewTransition(() => setPage(backPage === 'game' ? 'home' : backPage))
   }
 
   // Gõ tìm kiếm ở topbar thì chuyển sang Kho game để xem kết quả
   const handleSearchChange = (value: string): void => {
     setSearch(value)
     if (value && page !== 'catalogue') setPage('catalogue')
+  }
+
+  const openForm = (game: Game, startWithDelete = false): void => {
+    setFormDelete(startWithDelete)
+    setForm(game)
+  }
+
+  const openFolder = async (game: Game): Promise<void> => {
+    const error = await window.electronAPI.games.openFolder(game.id)
+    if (error) showToast('error', error)
   }
 
   const replaceGame = (updated: Game): void => {
@@ -138,10 +179,17 @@ function App(): React.JSX.Element {
     const remaining = games.filter((g) => g.id !== id)
     setGames(remaining)
     if (featuredId === id) setFeaturedId(remaining[0]?.id ?? null)
+    // Đang xem trang của game vừa xoá => quay lại trang trước
+    if (page === 'game' && detailId === id) setPage(backPage === 'game' ? 'home' : backPage)
     setForm(null)
   }
 
-  const openAddForm = (): void => setForm('new')
+  const openAddForm = (): void => {
+    setFormDelete(false)
+    setForm('new')
+  }
+
+  const detailGame = page === 'game' ? games.find((g) => g.id === detailId) : undefined
 
   const runningTitles = games.filter((g) => runningIds.has(g.id)).map((g) => g.title)
 
@@ -152,14 +200,18 @@ function App(): React.JSX.Element {
           page={page}
           onNavigate={setPage}
           games={games}
-          selectedGameId={featuredId}
+          selectedGameId={detailGame?.id ?? null}
           onSelectGame={selectGame}
           onAddGame={openAddForm}
+          onEditGame={(g) => openForm(g)}
+          onDeleteGame={(g) => openForm(g, true)}
+          onToggleFavorite={toggleFavorite}
+          onOpenFolder={openFolder}
         />
 
         <main className="main">
           <TopBar
-            title={PAGE_TITLES[page]}
+            title={detailGame?.title ?? PAGE_TITLES[page]}
             search={search}
             onSearchChange={handleSearchChange}
             showSearch={page !== 'catalogue'}
@@ -174,7 +226,7 @@ function App(): React.JSX.Element {
                 onOpenSettings={() => setPage('settings')}
                 onSelectGame={selectGame}
                 onAddGame={openAddForm}
-                onEditGame={setForm}
+                onEditGame={(g) => openForm(g)}
                 onToggleFavorite={toggleFavorite}
               />
             )}
@@ -185,9 +237,30 @@ function App(): React.JSX.Element {
                 onSearchChange={setSearch}
                 onSelectGame={selectGame}
                 onAddGame={openAddForm}
-                onEditGame={setForm}
+                onEditGame={(g) => openForm(g)}
                 onToggleFavorite={toggleFavorite}
               />
+            )}
+            {detailGame && (
+              <GameDetailPage
+                game={detailGame}
+                games={games}
+                onBack={leaveDetail}
+                onNavigate={selectGame}
+                onEdit={(g) => openForm(g)}
+                onDelete={(g) => openForm(g, true)}
+                onToggleFavorite={toggleFavorite}
+                onGameUpdated={replaceGame}
+                onNotify={showToast}
+              />
+            )}
+            {page === 'game' && !detailGame && (
+              <div className="empty-state">
+                <h2>Không tìm thấy game</h2>
+                <button className="btn btn-primary" onClick={() => setPage('home')}>
+                  Về trang chủ
+                </button>
+              </div>
             )}
             {page === 'settings' && <SettingsPage />}
             {page === 'downloads' && (
@@ -206,6 +279,7 @@ function App(): React.JSX.Element {
             // key để reset state khi chuyển từ sửa game này sang game khác
             key={form === 'new' ? 'new' : form.id}
             game={form === 'new' ? undefined : form}
+            startWithDelete={formDelete}
             onClose={closeForm}
             onSaved={handleSaved}
             onDeleted={handleDeleted}

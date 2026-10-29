@@ -2777,3 +2777,538 @@ select.input option {
 .news-source-name {
   flex: 1;
 }
+
+/* ================= Trang chi tiết game ================= */
+
+.detail {
+  --ambient: rgb(139, 92, 246);
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  transition: --ambient 1.2s ease;
+}
+
+.detail-hero {
+  position: relative;
+  min-height: 360px;
+  border-radius: 16px;
+  overflow: hidden;
+  isolation: isolate;
+  display: flex;
+  align-items: flex-end;
+  padding: 28px 32px;
+  box-shadow: 0 20px 50px rgb(from var(--ambient) r g b / 0.2);
+}
+.detail-hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    linear-gradient(0deg, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0.15) 55%, transparent),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.45) 0%, transparent 60%);
+}
+
+/* Khối ảnh nhận hiệu ứng "bay" từ ảnh nhỏ ở sidebar */
+.detail-hero-media {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  display: grid;
+  place-items: center;
+  view-transition-name: game-hero-art;
+}
+.detail-hero-cover {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  animation: fade-in 0.6s ease;
+}
+.detail-hero-icon {
+  width: 180px;
+  height: 180px;
+  margin-left: 45%;
+}
+
+.detail-back {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+}
+
+.detail-hero-content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+  max-width: 640px;
+  animation: rise-in 0.45s ease;
+}
+
+.detail-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.detail-icon-btn {
+  width: 40px;
+  padding: 0;
+  justify-content: center;
+  font-size: 18px;
+}
+.detail-icon-btn.favorite {
+  color: #facc15;
+}
+.detail-icon-btn.favorite svg {
+  fill: currentColor;
+}
+.detail-icon-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.detail-clock {
+  padding: 0 6px;
+  font-size: 20px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--success);
+}
+
+/* ---------- Tab ---------- */
+
+.detail-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+}
+.detail-tab {
+  position: relative;
+  padding: 10px 14px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+.detail-tab:hover {
+  color: var(--text-1);
+}
+.detail-tab.active {
+  color: var(--text-1);
+}
+.detail-tab.active::after {
+  content: '';
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+.detail-tab-dot {
+  position: absolute;
+  top: 9px;
+  right: 6px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.detail-nav-hint {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+.detail-body {
+  animation: fade-in 0.25s ease;
+}
+
+.detail-muted {
+  color: var(--text-3);
+  line-height: 1.5;
+}
+.detail-muted.small {
+  font-size: 12px;
+}
+
+.detail-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 18px 20px;
+  border-radius: 12px;
+  background: rgba(26, 30, 39, 0.75);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(10px);
+}
+.detail-card h3,
+.detail-section-title {
+  font-size: 15px;
+  font-weight: 700;
+}
+.detail-section-title {
+  margin-bottom: 12px;
+}
+
+/* ---------- Tổng quan ---------- */
+
+.detail-overview {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(280px, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+.detail-main,
+.detail-side {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+.detail-description {
+  line-height: 1.6;
+  color: var(--text-2);
+}
+
+.info-grid {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px 20px;
+}
+.info-list {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.info-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.info-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.info-value {
+  color: var(--text-1);
+  min-width: 0;
+}
+.info-path {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 13px;
+  color: var(--text-2);
+  direction: rtl; /* Cắt phần đầu đường dẫn, giữ phần cuối (tên file) */
+  text-align: left;
+  user-select: text;
+}
+
+.detail-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.detail-links a {
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--text-1);
+  text-decoration: none;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+}
+.detail-links a:hover {
+  border-color: var(--accent);
+}
+
+.detail-screens-preview {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  padding: 0;
+}
+.detail-screens-preview img {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: 8px;
+  transition: filter 0.15s;
+}
+.detail-screens-preview:hover img {
+  filter: brightness(1.15);
+}
+
+/* ---------- Thống kê ---------- */
+
+.detail-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.detail-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+}
+.detail-tiles .stat-tile {
+  max-width: none;
+}
+.detail-chart {
+  width: 100%;
+  height: 160px;
+  display: flex;
+}
+.detail-chart .chart-bars {
+  flex: 1;
+}
+
+.session-list {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.session-list li {
+  display: grid;
+  grid-template-columns: 1fr auto 90px;
+  gap: 16px;
+  padding: 9px 2px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.session-list li:last-child {
+  border-bottom: none;
+}
+.session-date {
+  color: var(--text-1);
+}
+.session-range {
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+.session-hours {
+  text-align: right;
+  font-weight: 600;
+}
+
+/* ---------- Tin tức / ảnh & video / ghi chú ---------- */
+
+.detail-news {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.detail-news-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 300px);
+  gap: 14px;
+}
+
+.detail-media {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+.media-videos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 14px;
+}
+.media-video {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: inherit;
+  text-decoration: none;
+}
+.media-video video,
+.media-video img {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: 10px;
+  background: #000;
+}
+.media-video figcaption {
+  font-size: 13px;
+  color: var(--text-2);
+}
+.media-play {
+  position: absolute;
+  top: calc(50% - 30px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 16px;
+  border-radius: 99px;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(6px);
+}
+.media-screens {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+}
+.media-screen {
+  padding: 0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.media-screen img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  transition: transform 0.25s;
+}
+.media-screen:hover img {
+  transform: scale(1.04);
+}
+
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.88);
+  animation: fade-in 0.2s ease;
+}
+.lightbox img {
+  max-width: 90vw;
+  max-height: 86vh;
+  border-radius: 8px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+}
+.lightbox-close {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+}
+.lightbox-nav {
+  position: absolute;
+  top: 50%;
+  width: 48px;
+  height: 48px;
+  transform: translateY(-50%);
+  border-radius: 50%;
+  font-size: 30px;
+  line-height: 1;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+}
+.lightbox-nav:hover,
+.lightbox-close:hover {
+  background: rgba(255, 255, 255, 0.24);
+}
+.lightbox-nav.prev {
+  left: 24px;
+}
+.lightbox-nav.next {
+  right: 24px;
+}
+.lightbox-count {
+  position: absolute;
+  bottom: 20px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.detail-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.notes-input {
+  min-height: 320px;
+  resize: vertical;
+  line-height: 1.6;
+  font-family: inherit;
+  user-select: text;
+}
+
+@media (max-width: 1100px) {
+  .detail-overview {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- Menu chuột phải ---------- */
+
+.context-menu {
+  position: fixed;
+  z-index: 300;
+  min-width: 200px;
+  padding: 5px;
+  border-radius: 10px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+  animation: fade-in 0.12s ease;
+}
+.context-menu-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  text-align: left;
+  font-size: 13px;
+  color: var(--text-1);
+}
+.context-menu-item svg {
+  color: var(--text-2);
+}
+.context-menu-item:not(:disabled):hover {
+  background: var(--bg-3);
+}
+.context-menu-item:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.context-menu-item.danger,
+.context-menu-item.danger svg {
+  color: #f87171;
+}
+.context-menu-divider {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--border);
+}
+
+/* ---------- Hiệu ứng chuyển trang (View Transitions) ---------- */
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.22s;
+}
+::view-transition-group(game-hero-art) {
+  animation-duration: 0.45s;
+  animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+/* Ảnh vuông (icon sidebar) và ảnh rộng (hero) khác tỉ lệ => cắt thay vì kéo giãn */
+::view-transition-old(game-hero-art),
+::view-transition-new(game-hero-art) {
+  height: 100%;
+  object-fit: cover;
+}

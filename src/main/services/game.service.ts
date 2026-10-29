@@ -19,6 +19,7 @@ export interface Game {
   last_played: string | null
   process_name: string | null
   art_lookup: string | null
+  notes: string | null
   created_at: string
   updated_at: string
 }
@@ -239,6 +240,93 @@ export function recordPlaySession(id: string, hours: number): Game | undefined {
   `)
   stmt.run(hours, now, now, id)
   return getGameById(id)
+}
+
+const MAX_NOTES = 20_000
+
+export function setNotes(id: string, notes: string): Game | undefined {
+  getDb()
+    .prepare('UPDATE games SET notes = ? WHERE id = ?')
+    .run(notes.slice(0, MAX_NOTES) || null, id)
+  return getGameById(id)
+}
+
+export interface GameStats {
+  sessions: number
+  longestHours: number
+  averageHours: number
+  firstPlayed: string | null // Phiên chơi đầu tiên được ghi lại
+  share: number // Tỉ lệ giờ chơi so với cả thư viện (0..1)
+  weeks: { start: string; hours: number }[] // 12 tuần gần nhất (bắt đầu từ thứ 2), cũ => mới
+  recent: { startedAt: string; endedAt: string; hours: number }[] // 15 phiên gần nhất
+}
+
+const WEEKS = 12
+
+// Thứ 2 của tuần chứa ngày d (giờ máy)
+function startOfWeek(d: Date): Date {
+  const day = new Date(d)
+  day.setHours(0, 0, 0, 0)
+  day.setDate(day.getDate() - ((day.getDay() + 6) % 7))
+  return day
+}
+
+export function getGameStats(gameId: string): GameStats {
+  const db = getDb()
+  const summary = db
+    .prepare(
+      `SELECT COUNT(*) AS count, MAX(hours) AS longest, AVG(hours) AS average, MIN(started_at) AS first
+       FROM play_sessions WHERE game_id = ? AND hours > 0`
+    )
+    .get(gameId) as {
+    count: number
+    longest: number | null
+    average: number | null
+    first: string | null
+  }
+
+  const game = getGameById(gameId)
+  const total = (
+    db.prepare('SELECT SUM(total_playtime) AS total FROM games').get() as {
+      total: number | null
+    }
+  ).total
+  const share = game && total ? game.total_playtime / total : 0
+
+  const firstWeek = startOfWeek(new Date())
+  firstWeek.setDate(firstWeek.getDate() - (WEEKS - 1) * 7)
+  const rows = db
+    .prepare('SELECT started_at, hours FROM play_sessions WHERE game_id = ? AND started_at >= ?')
+    .all(gameId, firstWeek.toISOString()) as { started_at: string; hours: number }[]
+
+  const weeks = Array.from({ length: WEEKS }, (_, i) => {
+    const start = new Date(firstWeek)
+    start.setDate(start.getDate() + i * 7)
+    return { start, hours: 0 }
+  })
+  for (const r of rows) {
+    const index = Math.floor(
+      (startOfWeek(new Date(r.started_at)).getTime() - firstWeek.getTime()) / (7 * 86_400_000) + 0.5
+    )
+    if (weeks[index]) weeks[index].hours += r.hours
+  }
+
+  const recent = db
+    .prepare(
+      `SELECT started_at AS startedAt, ended_at AS endedAt, hours FROM play_sessions
+       WHERE game_id = ? ORDER BY started_at DESC LIMIT 15`
+    )
+    .all(gameId) as GameStats['recent']
+
+  return {
+    sessions: summary.count,
+    longestHours: summary.longest ?? 0,
+    averageHours: summary.average ?? 0,
+    firstPlayed: summary.first,
+    share,
+    weeks: weeks.map((w) => ({ start: localDate(w.start), hours: w.hours })),
+    recent
+  }
 }
 
 export function deleteGame(id: string): boolean {
