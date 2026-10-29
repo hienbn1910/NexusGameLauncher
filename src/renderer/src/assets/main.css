@@ -33,10 +33,9 @@ body {
   background: var(--bg-0);
   color: var(--text-1);
   font-family:
-    Inter,
-    -apple-system,
-    'Segoe UI',
+    'Roboto Variable',
     Roboto,
+    'Segoe UI',
     sans-serif;
   font-size: 14px;
   overflow: hidden;
@@ -457,6 +456,20 @@ ul {
 .icon-art-image {
   position: relative;
   filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.5));
+}
+/* Icon phóng to phủ kín khung, làm mờ làm nền (tràn ra ngoài để giấu viền mờ) */
+.icon-backdrop {
+  position: absolute;
+  inset: -15%;
+  width: 130%;
+  height: 130%;
+  object-fit: cover;
+  filter: blur(28px) saturate(1.4) brightness(0.62);
+  pointer-events: none;
+  animation: fade-in 0.5s ease;
+}
+.featured > .icon-backdrop {
+  z-index: -2;
 }
 
 .poster-icon {
@@ -2827,8 +2840,8 @@ select.input option {
   animation: fade-in 0.6s ease;
 }
 .detail-hero-icon {
-  width: 180px;
-  height: 180px;
+  width: 200px;
+  height: 200px;
   margin-left: 45%;
 }
 

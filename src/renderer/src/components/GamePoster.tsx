@@ -56,11 +56,17 @@ export function GamePoster({
               <>
                 <img className="poster-fallback-bg" src={cover} alt="" draggable={false} />
                 <img className="poster-fallback-cover" src={cover} alt="" draggable={false} />
+                <span className="poster-fallback-title">{game.title}</span>
               </>
             ) : (
-              <GameIconArt game={game} className="poster-icon" fallback={null} />
+              // Tên game đã có ở chú thích bên dưới nên chỉ hiện khi không có icon
+              <GameIconArt
+                game={game}
+                className="poster-icon"
+                backdrop
+                fallback={<span className="poster-fallback-title">{game.title}</span>}
+              />
             )}
-            <span className="poster-fallback-title">{game.title}</span>
           </div>
         )}
 

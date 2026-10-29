@@ -138,6 +138,7 @@ export function GameDetailPage({
             <GameIconArt
               game={game}
               className="detail-hero-icon"
+              backdrop
               fallback={<span className="featured-watermark">{gameInitials(game.title)}</span>}
             />
           )}

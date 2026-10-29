@@ -36,6 +36,7 @@ export function GameCard({
           <GameIconArt
             game={game}
             className="card-icon"
+            backdrop
             fallback={<span className="game-card-initials">{gameInitials(game.title)}</span>}
           />
         )}

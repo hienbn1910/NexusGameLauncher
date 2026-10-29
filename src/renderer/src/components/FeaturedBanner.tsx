@@ -72,14 +72,18 @@ export function FeaturedBanner({
         // key => ảnh mới mờ dần lên mỗi khi đổi game
         <img key={cover} className="featured-cover" src={cover} alt="" draggable={false} />
       ) : (
-        <>
-          <GameIconArt
-            game={game}
-            className="featured-icon"
-            fallback={<span className="featured-watermark">{gameInitials(game.title)}</span>}
-          />
-          <div className="featured-glow" style={{ background: gameAccent(game.title) }} />
-        </>
+        <GameIconArt
+          key={game.id}
+          game={game}
+          className="featured-icon"
+          backdrop
+          fallback={
+            <>
+              <span className="featured-watermark">{gameInitials(game.title)}</span>
+              <div className="featured-glow" style={{ background: gameAccent(game.title) }} />
+            </>
+          }
+        />
       )}
 
       <div className="featured-content" key={game.id}>
