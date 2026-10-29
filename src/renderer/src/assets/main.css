@@ -2410,6 +2410,8 @@ select.input option {
   position: relative;
   flex: 0 0 150px;
   overflow: hidden;
+  /* Cùng tông với ảnh nền Nexus, hiện trong lúc ảnh đang tải */
+  background: #0b0d1a;
 }
 .news-image img {
   width: 100%;

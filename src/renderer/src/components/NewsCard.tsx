@@ -1,23 +1,25 @@
 import { useState } from 'react'
-import { coverUrl, formatRelative, gameGradient } from '../utils/gameArt'
+import placeholder from '../assets/news-placeholder.svg'
+import { coverUrl, formatRelative } from '../utils/gameArt'
 
-// Ảnh tin tức; lỗi (bị chặn, ảnh hỏng) thì dùng ảnh bìa game trên máy hoặc nền gradient
+// Ảnh tin tức, lần lượt thử: ảnh của tin => ảnh bìa game trên máy => ảnh nền Nexus
 function NewsImage({ item, game }: { item: NewsItem; game?: Game }): React.JSX.Element {
-  const [failed, setFailed] = useState(false)
-  const fallback = game ? coverUrl(game) : null
-  const src = !failed && item.image ? item.image : fallback
+  const sources = [item.image, game ? coverUrl(game) : null, placeholder].filter(
+    (s): s is string => !!s
+  )
+  const [failed, setFailed] = useState(0)
+  const src = sources[Math.min(failed, sources.length - 1)]
 
   return (
-    <span className="news-image" style={{ background: gameGradient(item.gameName ?? item.title) }}>
-      {src && (
-        <img
-          src={src}
-          alt=""
-          loading="lazy"
-          draggable={false}
-          onError={() => (src === fallback ? undefined : setFailed(true))}
-        />
-      )}
+    <span className="news-image">
+      <img
+        key={src}
+        src={src}
+        alt=""
+        loading="lazy"
+        draggable={false}
+        onError={() => setFailed((n) => n + 1)}
+      />
       {item.isPatch && <span className="news-tag">Cập nhật</span>}
     </span>
   )

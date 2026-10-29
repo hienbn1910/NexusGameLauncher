@@ -7,15 +7,17 @@ import {
   markSteamReachable,
   NetworkError
 } from './network.service'
-import { proxiedImageUrl } from './news-image.service'
+import { proxiedImageUrl, proxiedPageImageUrl } from './news-image.service'
 import { parseFeed, type FeedItem } from './rss.service'
 import { getSetting, setSetting } from './settings.service'
 
 // Tin tức game, đọc hoàn toàn bằng RSS (không cần API key):
 // - Game có trên Steam: RSS tin chính thức của Steam
-// - Game ngoài Steam, hoặc khi Steam bị chặn: Google News (tiếng Việt + tiếng Anh, 30 ngày)
+// - Game ngoài Steam, hoặc khi Steam bị chặn: Bing News (tiếng Việt + tiếng Anh, 30 ngày),
+//   Bing lỗi thì dùng Google News
 // - Tab "Tin game": RSS các trang báo game
 // Mỗi nguồn được lưu vào bảng news_cache để mất mạng vẫn có tin cũ.
+// Tin báo chí không kèm ảnh => lấy ảnh đại diện (og:image) từ trang bài gốc khi hiển thị.
 
 export type NewsTab = 'library' | 'following' | 'sites'
 export type NewsLang = 'vi' | 'en'
@@ -169,6 +171,19 @@ const steamFeed = (appId: string): FeedSpec => ({
   url: `https://store.steampowered.com/feeds/news/app/${appId}/`
 })
 
+// Bing News RSS: link trỏ thẳng tới bài gốc và thường kèm ảnh thumbnail
+function bingFeed(name: string, lang: NewsLang): FeedSpec {
+  const q = encodeURIComponent(`"${name}" game`)
+  const region = lang === 'vi' ? 'setlang=vi&cc=VN' : 'setlang=en-US&cc=US'
+  // sortbydate: mặc định Bing xếp theo độ liên quan nên lẫn cả bài nhiều năm trước
+  const sort = encodeURIComponent('sortbydate="1"')
+  return {
+    key: `bing:${lang}:${name.toLowerCase()}`,
+    url: `https://www.bing.com/news/search?q=${q}&qft=${sort}&format=rss&${region}`
+  }
+}
+
+// Dự phòng khi Bing lỗi: link Google News là link chuyển hướng nên không lấy được ảnh bài gốc
 function googleFeed(name: string, lang: NewsLang): FeedSpec {
   const q = encodeURIComponent(`"${name}" game when:${PRESS_MAX_AGE_DAYS}d`)
   const region = lang === 'vi' ? 'hl=vi&gl=VN&ceid=VN:vi' : 'hl=en-US&gl=US&ceid=US:en'
@@ -219,14 +234,19 @@ function toNewsItem(
       ? item.title.slice(0, -item.source.length - 3)
       : item.title
   const patchRule = extra.origin === 'steam' ? PATCH_STEAM : PATCH_PRESS
+  const isGoogle = /^https:\/\/news\.google\.com\//i.test(item.url)
+  const image =
+    proxiedImageUrl(item.image ?? fallbackImage) ??
+    // Báo chí không kèm ảnh: đọc ảnh đại diện của trang bài viết (trừ link chuyển hướng Google)
+    (extra.origin === 'press' && !isGoogle ? proxiedPageImageUrl(item.url) : null)
   return {
     id: item.url,
     title,
     url: item.url,
     date: item.date,
     // Tóm tắt của Google News chỉ lặp lại tiêu đề => bỏ
-    summary: item.source ? '' : item.summary,
-    image: proxiedImageUrl(item.image ?? fallbackImage),
+    summary: isGoogle ? '' : item.summary,
+    image,
     isPatch: patchRule.test(title),
     ...extra,
     sourceName: item.source ?? extra.sourceName
@@ -239,7 +259,16 @@ interface Limits {
 }
 const DEFAULT_LIMITS: Limits = { steam: PER_GAME, lang: PER_LANG }
 
-async function collectGoogle(
+// Bing trước, lỗi (bị chặn, không có cache) thì Google News
+async function loadPressFeed(name: string, lang: NewsLang, force: boolean): Promise<FeedResult> {
+  try {
+    return await loadFeed(bingFeed(name, lang), force)
+  } catch {
+    return loadFeed(googleFeed(name, lang), force)
+  }
+}
+
+async function collectPress(
   target: Target,
   force: boolean,
   limits = DEFAULT_LIMITS
@@ -247,7 +276,7 @@ async function collectGoogle(
   const out: Collected = { items: [], fetchedAt: null, stale: false }
   for (const lang of ['vi', 'en'] as NewsLang[]) {
     try {
-      const feed = await loadFeed(googleFeed(target.name, lang), force)
+      const feed = await loadPressFeed(target.name, lang, force)
       out.fetchedAt = Math.max(out.fetchedAt ?? 0, feed.fetchedAt)
       out.stale ||= feed.stale
       out.items.push(
@@ -261,7 +290,7 @@ async function collectGoogle(
               i,
               {
                 origin: 'press',
-                sourceName: 'Google News',
+                sourceName: 'Báo chí',
                 lang,
                 gameId: target.gameId,
                 gameName: target.name
@@ -311,7 +340,7 @@ async function collectTarget(
       if (err instanceof NetworkError) markSteamBlocked()
     }
   }
-  return collectGoogle(target, force, limits)
+  return collectPress(target, force, limits)
 }
 
 // ---------- Theo dõi & trang báo ----------

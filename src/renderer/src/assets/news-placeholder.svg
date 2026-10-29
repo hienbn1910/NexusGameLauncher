@@ -1,0 +1,116 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" width="640" height="360">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0d1020"/>
+      <stop offset="1" stop-color="#090a14"/>
+    </linearGradient>
+    <radialGradient id="glowL" cx="0.25" cy="0.35" r="0.55">
+      <stop offset="0" stop-color="#2563eb" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#2563eb" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowR" cx="0.78" cy="0.7" r="0.55">
+      <stop offset="0" stop-color="#c026d3" stop-opacity="0.32"/>
+      <stop offset="1" stop-color="#c026d3" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="vignette" cx="0.5" cy="0.5" r="0.75">
+      <stop offset="0.55" stop-color="#000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000" stop-opacity="0.65"/>
+    </radialGradient>
+    <linearGradient id="neon" x1="0" y1="0" x2="1" y2="0.3">
+      <stop offset="0" stop-color="#22d3ee"/>
+      <stop offset="0.35" stop-color="#3b82f6"/>
+      <stop offset="0.7" stop-color="#8b5cf6"/>
+      <stop offset="1" stop-color="#e040fb"/>
+    </linearGradient>
+    <linearGradient id="nFill" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1b2a55"/>
+      <stop offset="1" stop-color="#2a1747"/>
+    </linearGradient>
+    <linearGradient id="streak" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#8b5cf6" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#a78bfa" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#8b5cf6" stop-opacity="0"/>
+    </linearGradient>
+    <pattern id="hex" width="28" height="48.5" patternUnits="userSpaceOnUse">
+      <path d="M14 0 L28 8.08 L28 24.25 L14 32.33 L0 24.25 L0 8.08 Z M14 32.33 L14 48.5"
+            fill="none" stroke="#6d7bd8" stroke-opacity="0.07" stroke-width="1"/>
+    </pattern>
+    <pattern id="scan" width="4" height="4" patternUnits="userSpaceOnUse">
+      <rect width="4" height="1" fill="#ffffff" fill-opacity="0.025"/>
+    </pattern>
+    <filter id="blur" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="9"/>
+    </filter>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="2.2"/>
+    </filter>
+  </defs>
+
+  <!-- Nền -->
+  <rect width="640" height="360" fill="url(#bg)"/>
+  <rect width="640" height="360" fill="url(#glowL)"/>
+  <rect width="640" height="360" fill="url(#glowR)"/>
+  <rect width="640" height="360" fill="url(#hex)"/>
+
+  <!-- Vệt sáng chéo -->
+  <g opacity="0.55">
+    <rect x="-120" y="70" width="520" height="2" fill="url(#streak)" transform="rotate(-18 320 180)"/>
+    <rect x="260" y="290" width="520" height="1.5" fill="url(#streak)" transform="rotate(-18 320 180)"/>
+  </g>
+
+  <!-- Mạch điện bên trái -->
+  <g fill="none" stroke="#38bdf8" stroke-opacity="0.45" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M0 120 H120 L150 150 H215"/>
+    <path d="M0 165 H95 L115 185 H200"/>
+    <path d="M0 215 H70 L100 245 H170 L190 225 H228"/>
+    <path d="M60 0 V40 L95 75 H170 L200 105"/>
+  </g>
+  <g fill="#38bdf8">
+    <circle cx="215" cy="150" r="3"/><circle cx="200" cy="185" r="3"/>
+    <circle cx="228" cy="225" r="3"/><circle cx="200" cy="105" r="3"/>
+  </g>
+
+  <!-- Mạch điện bên phải -->
+  <g fill="none" stroke="#d946ef" stroke-opacity="0.45" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M640 110 H530 L500 140 H425"/>
+    <path d="M640 175 H545 L525 195 H440"/>
+    <path d="M640 235 H575 L545 265 H470 L450 245 H412"/>
+    <path d="M585 360 V320 L550 285 H480 L455 260"/>
+  </g>
+  <g fill="#e879f9">
+    <circle cx="425" cy="140" r="3"/><circle cx="440" cy="195" r="3"/>
+    <circle cx="412" cy="245" r="3"/><circle cx="455" cy="260" r="3"/>
+  </g>
+
+  <!-- Khung lục giác quanh chữ N -->
+  <path d="M320 58 L410 110 L410 214 L320 266 L230 214 L230 110 Z"
+        fill="#0b0e1c" fill-opacity="0.7" stroke="url(#neon)" stroke-opacity="0.35" stroke-width="1.5"/>
+
+  <!-- Chữ N: lớp glow -->
+  <path id="nShape" d="M262 228 L262 112 L278 96 L302 96 L350 172 L350 96 L378 96 L378 212 L362 228 L338 228 L290 152 L290 228 Z"
+        fill="none" stroke="url(#neon)" stroke-width="10" filter="url(#blur)" opacity="0.9"/>
+  <!-- Chữ N: thân -->
+  <path d="M262 228 L262 112 L278 96 L302 96 L350 172 L350 96 L378 96 L378 212 L362 228 L338 228 L290 152 L290 228 Z"
+        fill="url(#nFill)" stroke="url(#neon)" stroke-width="3.5" stroke-linejoin="miter"/>
+  <!-- Viền neon sáng -->
+  <path d="M262 228 L262 112 L278 96 L302 96 L350 172 L350 96 L378 96 L378 212 L362 228 L338 228 L290 152 L290 228 Z"
+        fill="none" stroke="#ffffff" stroke-opacity="0.55" stroke-width="1" filter="url(#soft)"/>
+  <!-- Đường cắt bên trong -->
+  <path d="M272 214 V118 L282 108 M368 110 V206 L358 216" fill="none" stroke="#c4b5fd" stroke-opacity="0.6" stroke-width="1.2"/>
+
+  <!-- Chữ -->
+  <text x="320" y="306" text-anchor="middle"
+        font-family="Orbitron, Rajdhani, 'Segoe UI', 'Arial Black', sans-serif"
+        font-size="26" font-weight="800" letter-spacing="10" fill="url(#neon)">NEXUS</text>
+  <g stroke="#8b5cf6" stroke-opacity="0.6" stroke-width="1">
+    <line x1="236" y1="324" x2="270" y2="324"/>
+    <line x1="370" y1="324" x2="404" y2="324"/>
+  </g>
+  <text x="320" y="328" text-anchor="middle"
+        font-family="Rajdhani, 'Segoe UI', sans-serif"
+        font-size="11" font-weight="600" letter-spacing="5" fill="#9aa3c7">NEWS</text>
+
+  <!-- Hiệu ứng scanline và viền tối -->
+  <rect width="640" height="360" fill="url(#scan)"/>
+  <rect width="640" height="360" fill="url(#vignette)"/>
+</svg>

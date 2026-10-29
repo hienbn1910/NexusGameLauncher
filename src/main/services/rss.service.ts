@@ -8,7 +8,7 @@ export interface FeedItem {
   date: number // ms, 0 nếu không rõ
   summary: string
   image: string | null
-  source: string | null // Tên báo (Google News ghi ở thẻ <source>)
+  source: string | null // Tên báo (Google News: thẻ <source>, Bing News: <News:Source>)
 }
 
 const parser = new XMLParser({
@@ -48,6 +48,8 @@ const decodeEntities = (s: string): string =>
     .replace(/&quot;/g, '"')
     .replace(/&#0?39;|&apos;/g, "'")
     .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
+    // Bing ghi tiếng Việt dạng chữ + dấu rời => gộp lại cho chữ hiển thị chuẩn
+    .normalize('NFC')
 
 // HTML/BBCode => đoạn văn ngắn
 export function toSummary(html: string, maxLength = MAX_SUMMARY): string {
@@ -71,6 +73,25 @@ function firstImageInHtml(html: string): string | null {
 
 const httpsOnly = (url: string | null): string | null =>
   url && /^https:\/\//i.test(url.trim()) ? url.trim() : null
+
+// Link Bing News là link đếm lượt bấm (http) chứa link bài gốc ở tham số url
+function unwrapBingLink(url: string): string {
+  try {
+    const parsed = new URL(url.trim())
+    if (/(^|\.)bing\.com$/i.test(parsed.hostname) && parsed.pathname === '/news/apiclick.aspx') {
+      return parsed.searchParams.get('url') ?? url
+    }
+  } catch {
+    // Không phải URL hợp lệ, để httpsOnly loại
+  }
+  return url
+}
+
+// Ảnh thumbnail của Bing News ghi http, nhưng máy chủ hỗ trợ https
+function bingImage(item: Record<string, unknown>): string | null {
+  const url = text(item['News:Image'] as Node).trim()
+  return /^http:\/\/www\.bing\.com\/th\?/i.test(url) ? url.replace(/^http:/i, 'https:') : null
+}
 
 function parseDate(value: string): number {
   const time = Date.parse(value)
@@ -98,18 +119,19 @@ function itemImage(item: Record<string, unknown>, html: string): string | null {
 
 function parseRssItem(item: Record<string, unknown>): FeedItem | null {
   const links = (item.link as Node[]) ?? []
-  const url = httpsOnly(text(links[0]) || text(item.guid as Node))
+  const url = httpsOnly(unwrapBingLink(text(links[0]) || text(item.guid as Node)))
   const title = decodeEntities(text(item.title as Node)).trim()
   if (!url || !title) return null
 
   const html = text(item['content:encoded'] as Node) || text(item.description as Node)
+  const source = text(item.source as Node) || text(item['News:Source'] as Node)
   return {
     title,
     url,
     date: parseDate(text(item.pubDate as Node) || text(item['dc:date'] as Node)),
     summary: toSummary(html),
-    image: itemImage(item, html),
-    source: text(item.source as Node).trim() || null
+    image: itemImage(item, html) ?? bingImage(item),
+    source: decodeEntities(source).trim() || null
   }
 }
 
