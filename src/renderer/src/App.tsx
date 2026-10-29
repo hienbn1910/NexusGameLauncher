@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { GameFormModal } from './components/GameFormModal'
+import { ProfileModal } from './components/ProfileModal'
+import { WatchDirSuggestionCard } from './components/WatchDirSuggestionCard'
 import { Sidebar, type PageKey } from './components/Sidebar'
 import { StatusBar } from './components/StatusBar'
 import { Toast, type ToastMessage } from './components/Toast'
@@ -35,10 +37,18 @@ function App(): React.JSX.Element {
   // Trang chi tiết game: id game đang xem + trang trước đó để quay lại
   const [detailId, setDetailId] = useState<string | null>(null)
   const [backPage, setBackPage] = useState<PageKey>('home')
-  const [runningIds, setRunningIds] = useState<Map<string, number>>(new Map())
+  const [runningIds, setRunningIds] = useState<Map<string, RunningInfo>>(new Map())
+  // Gợi ý thư mục game đang hiện (launcher sinh ra exe ở thư mục lạ)
+  const [suggestion, setSuggestion] = useState<WatchDirSuggestion | null>(null)
   const [stats, setStats] = useState<PlayStats | null>(null)
   const [launchingId, setLaunchingId] = useState<string | null>(null)
   const [toast, setToast] = useState<ToastMessage | null>(null)
+  const [profile, setProfile] = useState<UserProfile | null>(null)
+  const [editingProfile, setEditingProfile] = useState(false)
+
+  useEffect(() => {
+    window.electronAPI.profile.get().then(setProfile)
+  }, [])
 
   useEffect(() => {
     window.electronAPI.games.getAll().then((list) => {
@@ -52,17 +62,25 @@ function App(): React.JSX.Element {
     // Lấy lại danh sách game đang chạy (vd sau khi reload cửa sổ)
     window.electronAPI.games
       .getRunning()
-      .then((list) => setRunningIds(new Map(list.map((s) => [s.gameId, s.startedAt]))))
+      .then((list) =>
+        setRunningIds(
+          new Map(list.map((s) => [s.gameId, { phase: s.phase, startedAt: s.startedAt }]))
+        )
+      )
     window.electronAPI.games.getStats().then(setStats)
   }, [])
 
   // Nhận sự kiện game bắt đầu/thoát từ main process
   useEffect(() => {
-    return window.electronAPI.games.onSessionChanged(({ gameId, running, game, startedAt }) => {
+    return window.electronAPI.games.onSessionChanged((event) => {
+      const { gameId, running, game } = event
       setRunningIds((prev) => {
         const next = new Map(prev)
-        if (running) next.set(gameId, startedAt ?? Date.now())
-        else next.delete(gameId)
+        if (running) {
+          next.set(gameId, { phase: event.phase ?? 'playing', startedAt: event.startedAt ?? null })
+        } else {
+          next.delete(gameId)
+        }
         return next
       })
       if (game) setGames((prev) => prev.map((g) => (g.id === game.id ? game : g)))
@@ -70,6 +88,23 @@ function App(): React.JSX.Element {
       if (!running) window.electronAPI.games.getStats().then(setStats)
     })
   }, [])
+
+  // Launcher sinh ra exe ở thư mục lạ => hỏi người dùng có dùng làm thư mục game không
+  useEffect(() => {
+    return window.electronAPI.games.onWatchDirSuggestion(setSuggestion)
+  }, [])
+
+  const answerSuggestion = async (accept: boolean): Promise<void> => {
+    if (!suggestion) return
+    setSuggestion(null)
+    const { gameId, dir } = suggestion
+    if (!accept) return window.electronAPI.games.dismissWatchDir(gameId, dir)
+    const updated = await window.electronAPI.games.acceptWatchDir(gameId, dir)
+    if (updated) {
+      setGames((prev) => prev.map((g) => (g.id === updated.id ? updated : g)))
+      showToast('info', `Đã lưu thư mục game cho ${updated.title}`)
+    }
+  }
 
   // Main process tự lấy được ảnh bìa (Steam) cho game
   useEffect(() => {
@@ -162,6 +197,15 @@ function App(): React.JSX.Element {
   }
 
   const closeForm = useCallback(() => setForm(null), [])
+  const closeProfile = useCallback(() => setEditingProfile(false), [])
+
+  const handleProfileSaved = (saved: UserProfile): void => {
+    setProfile(saved)
+    setEditingProfile(false)
+  }
+
+  // Lần đầu mở app => hỏi tên; sau đó chỉ mở khi người dùng muốn sửa hồ sơ
+  const profileMode = profile && !profile.onboarded ? 'welcome' : editingProfile ? 'edit' : null
 
   const handleSaved = (saved: Game): void => {
     if (form === 'new') {
@@ -191,7 +235,8 @@ function App(): React.JSX.Element {
 
   const detailGame = page === 'game' ? games.find((g) => g.id === detailId) : undefined
 
-  const runningTitles = games.filter((g) => runningIds.has(g.id)).map((g) => g.title)
+  const titlesIn = (phase: SessionPhase): string[] =>
+    games.filter((g) => runningIds.get(g.id)?.phase === phase).map((g) => g.title)
 
   return (
     <LauncherContext.Provider value={{ runningIds, launchingId, launch }}>
@@ -207,6 +252,8 @@ function App(): React.JSX.Element {
           onDeleteGame={(g) => openForm(g, true)}
           onToggleFavorite={toggleFavorite}
           onOpenFolder={openFolder}
+          profile={profile}
+          onEditProfile={() => setEditingProfile(true)}
         />
 
         <main className="main">
@@ -262,7 +309,9 @@ function App(): React.JSX.Element {
                 </button>
               </div>
             )}
-            {page === 'settings' && <SettingsPage />}
+            {page === 'settings' && (
+              <SettingsPage profile={profile} onEditProfile={() => setEditingProfile(true)} />
+            )}
             {page === 'downloads' && (
               <div className="empty-state">
                 <h2>{PAGE_TITLES[page]}</h2>
@@ -272,7 +321,11 @@ function App(): React.JSX.Element {
           </div>
         </main>
 
-        <StatusBar gameCount={games.length} runningTitles={runningTitles} />
+        <StatusBar
+          gameCount={games.length}
+          playingTitles={titlesIn('playing')}
+          openTitles={titlesIn('launcher')}
+        />
 
         {form && (
           <GameFormModal
@@ -283,6 +336,25 @@ function App(): React.JSX.Element {
             onClose={closeForm}
             onSaved={handleSaved}
             onDeleted={handleDeleted}
+          />
+        )}
+
+        {profile && profileMode && (
+          <ProfileModal
+            key={profileMode}
+            profile={profile}
+            mode={profileMode}
+            onClose={closeProfile}
+            onSaved={handleProfileSaved}
+          />
+        )}
+
+        {suggestion && (
+          <WatchDirSuggestionCard
+            key={`${suggestion.gameId}:${suggestion.dir}`}
+            suggestion={suggestion}
+            onAnswer={answerSuggestion}
+            onClose={() => setSuggestion(null)}
           />
         )}
 

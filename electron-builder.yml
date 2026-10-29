@@ -9,8 +9,19 @@ files:
   - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
   - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+  # better-sqlite3: chỉ cần file native đã biên dịch sẵn cho Windows x64,
+  # bỏ mã nguồn SQLite (~10 MB) và bản cho hệ điều hành khác
+  - '!node_modules/better-sqlite3/{deps,src}/**'
+  - '!node_modules/better-sqlite3/binding.gyp'
+  - '!node_modules/better-sqlite3/prebuilds/!(win32-x64).node'
 asarUnpack:
   - resources/**
+  # Module native (better-sqlite3, koffi) phải nằm ngoài asar mới nạp được
+  - '**/*.node'
+# Chỉ giữ ngôn ngữ giao diện Chromium mà app dùng (bỏ ~50 MB của 53 ngôn ngữ khác)
+electronLanguages:
+  - vi
+  - en-US
 win:
   executableName: Nexus Launcher
 nsis:
@@ -37,7 +48,5 @@ linux:
   category: Utility
 appImage:
   artifactName: ${name}-${version}.${ext}
+# Module native đều có bản biên dịch sẵn => không cần Python / Visual Studio để build
 npmRebuild: false
-publish:
-  provider: generic
-  url: https://example.com/auto-updates

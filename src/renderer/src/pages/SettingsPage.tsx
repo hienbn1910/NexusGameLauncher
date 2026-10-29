@@ -1,5 +1,16 @@
 import { ApiKeyForm } from '../components/ApiKeyForm'
-import { GlobeIcon, ImageIcon, LayersIcon, type IconComponent } from '../components/Icons'
+import { Avatar } from '../components/Avatar'
+import { TrackingSettingsCard } from '../components/TrackingSettingsCard'
+import {
+  ClockIcon,
+  GlobeIcon,
+  ImageIcon,
+  LayersIcon,
+  PencilIcon,
+  UserIcon,
+  type IconComponent
+} from '../components/Icons'
+import { DEFAULT_PROFILE_NAME } from '../utils/avatar'
 import { NetworkSettingsCard } from '../components/NetworkSettingsCard'
 import { NewsSourcesCard } from '../components/NewsSourcesCard'
 
@@ -30,9 +41,45 @@ function SettingsCard({
   )
 }
 
-export function SettingsPage(): React.JSX.Element {
+interface SettingsPageProps {
+  profile: UserProfile | null
+  onEditProfile: () => void
+}
+
+export function SettingsPage({ profile, onEditProfile }: SettingsPageProps): React.JSX.Element {
+  const name = profile?.displayName ?? DEFAULT_PROFILE_NAME
   return (
     <div className="settings">
+      <SettingsCard
+        icon={UserIcon}
+        title="Hồ sơ"
+        description="Tên và ảnh đại diện hiển thị trong app. Hiện được lưu trên máy này."
+      >
+        <div className="settings-profile">
+          <Avatar
+            name={name}
+            type={profile?.avatar.type ?? 'initials'}
+            value={profile?.avatar.value ?? null}
+            size={48}
+          />
+          <div className="settings-profile-info">
+            <strong>{name}</strong>
+            <span>Tài khoản trên máy · chưa đăng nhập</span>
+          </div>
+          <button className="btn btn-secondary btn-sm" onClick={onEditProfile}>
+            <PencilIcon width={14} height={14} /> Chỉnh sửa
+          </button>
+        </div>
+      </SettingsCard>
+
+      <SettingsCard
+        icon={ClockIcon}
+        title="Theo dõi giờ chơi"
+        description="Tính giờ theo thư mục game: mọi exe trong thư mục cài game đều được tính là đang chơi."
+      >
+        <TrackingSettingsCard />
+      </SettingsCard>
+
       <SettingsCard
         icon={GlobeIcon}
         title="Mạng"

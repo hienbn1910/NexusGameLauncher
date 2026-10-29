@@ -166,7 +166,7 @@ export function HomePage({
           <RunningCard
             key={g.id}
             game={g}
-            startedAt={runningIds.get(g.id) ?? now}
+            info={runningIds.get(g.id) ?? { phase: 'launcher', startedAt: null }}
             onSelect={onSelectGame}
           />
         ))}

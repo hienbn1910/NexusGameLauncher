@@ -4,10 +4,11 @@ import * as exeMetadataService from '../services/exe-metadata.service'
 import * as gameService from '../services/game.service'
 import * as gameFilesService from '../services/game-files.service'
 import * as launcherService from '../services/launcher.service'
+import * as playTracker from '../services/play-tracker.service'
 import * as steamDetailsService from '../services/steam-details.service'
 import * as steamArtService from '../services/steam-art.service'
 
-export function registerGameHandlers() {
+export function registerGameHandlers(): void {
   // Mở dialog chọn file thực thi, trả về đường dẫn hoặc null nếu người dùng huỷ
   ipcMain.handle('games:selectExe', async (event) => {
     const win = BrowserWindow.fromWebContents(event.sender)
@@ -82,14 +83,17 @@ export function registerGameHandlers() {
   })
 
   // Sau khi thêm/sửa: tự tìm ảnh Steam ở nền, có ảnh sẽ báo qua sự kiện games:updated
+  // Thêm/sửa/xoá game => tính lại thư mục theo dõi giờ chơi
   ipcMain.handle('games:create', (_event, input) => {
     const game = gameService.createGame(input)
+    playTracker.invalidateTargets()
     void steamArtService.autoFetchArt(game.id)
     return game
   })
 
   ipcMain.handle('games:update', (_event, id: string, input) => {
     const game = gameService.updateGame(id, input)
+    playTracker.invalidateTargets()
     if (game) void steamArtService.autoFetchArt(game.id)
     return game
   })
@@ -97,7 +101,9 @@ export function registerGameHandlers() {
   ipcMain.handle('games:delete', async (_event, id: string) => {
     const game = gameService.getGameById(id)
     if (game) await coverService.deleteCover(game)
-    return gameService.deleteGame(id)
+    const deleted = gameService.deleteGame(id)
+    playTracker.invalidateTargets()
+    return deleted
   })
 
   ipcMain.handle('games:launch', (_event, id: string) => {
@@ -105,8 +111,42 @@ export function registerGameHandlers() {
   })
 
   ipcMain.handle('games:getRunning', () => {
-    return launcherService.getRunningSessions()
+    return playTracker.getRunningSessions()
   })
+
+  // ---------- Theo dõi giờ chơi ----------
+
+  // Chọn thư mục theo dõi; trả về lỗi nếu thư mục quá chung (ổ đĩa, Program Files...)
+  ipcMain.handle('games:selectWatchDir', async (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender)
+    const options: Electron.OpenDialogOptions = {
+      title: 'Chọn thư mục game',
+      properties: ['openDirectory']
+    }
+    const result = win
+      ? await dialog.showOpenDialog(win, options)
+      : await dialog.showOpenDialog(options)
+    if (result.canceled) return null
+    const path = result.filePaths[0]
+    return { path, error: playTracker.validateWatchDir(path) }
+  })
+
+  ipcMain.handle('games:validateWatchDir', (_event, path: string) =>
+    playTracker.validateWatchDir(String(path))
+  )
+
+  // Gợi ý thư mục game (exe do launcher sinh ra): đồng ý / bỏ qua
+  ipcMain.handle('games:acceptWatchDir', (_event, id: string, dir: string) =>
+    playTracker.acceptWatchDir(String(id), String(dir))
+  )
+  ipcMain.handle('games:dismissWatchDir', (_event, id: string, dir: string) =>
+    playTracker.dismissWatchDir(String(id), String(dir))
+  )
+
+  ipcMain.handle('games:getTrackingInfo', () => playTracker.getTrackingInfo())
+  ipcMain.handle('games:setAutoDetect', (_event, enabled: boolean) =>
+    playTracker.setAutoDetect(enabled === true)
+  )
 
   ipcMain.handle('games:getArtColor', (_event, id: string) => {
     return coverService.getArtColor(id)

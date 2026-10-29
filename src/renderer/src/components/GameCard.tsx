@@ -1,6 +1,7 @@
 import { useLauncher } from '../hooks/useLauncher'
 import { coverUrl, formatPlaytime, gameGradient, gameInitials } from '../utils/gameArt'
 import { GameIconArt } from './GameIconArt'
+import { RunningBadge } from './RunningBadge'
 import { ClockIcon, PencilIcon, PlayIcon, StarIcon } from './Icons'
 
 interface GameCardProps {
@@ -18,17 +19,13 @@ export function GameCard({
 }: GameCardProps): React.JSX.Element {
   const isFavorite = game.is_favorite === 1
   const { runningIds, launchingId, launch } = useLauncher()
-  const running = runningIds.has(game.id)
+  const running = runningIds.get(game.id)
   const launching = launchingId === game.id
   const cover = coverUrl(game)
 
   return (
     <div className={`game-card ${running ? 'running' : ''}`} onClick={() => onSelect(game)}>
-      {running && (
-        <span className="running-badge">
-          <span className="pulse-dot" /> Đang chạy
-        </span>
-      )}
+      {running && <RunningBadge info={running} />}
       <div className="game-card-art" style={{ background: gameGradient(game.title) }}>
         {cover ? (
           <img className="game-card-cover" src={cover} alt="" draggable={false} />

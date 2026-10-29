@@ -116,3 +116,9 @@ export function formatPlaytime(hours: number): string {
   const rounded = Math.round(hours * 10) / 10
   return `${rounded.toFixed(1).replace(/\.0$/, '')} giờ`
 }
+
+// Nhãn trạng thái game đang mở: launcher mới mở (chưa đếm giờ) / game thật đang chạy
+export function runningLabel(info: RunningInfo | undefined): string | null {
+  if (!info) return null
+  return info.phase === 'playing' ? 'Đang chạy' : 'Đang mở'
+}

@@ -14,9 +14,12 @@ import {
   PlusIcon,
   StarIcon,
   TrashIcon,
-  UsersIcon,
   type IconComponent
 } from './Icons'
+import { Avatar } from './Avatar'
+import { useOnline } from '../hooks/useOnline'
+import { DEFAULT_PROFILE_NAME } from '../utils/avatar'
+import { runningLabel } from '../utils/gameArt'
 
 // 'game' = trang chi tiết game (không có trong menu điều hướng)
 export type PageKey = 'home' | 'catalogue' | 'downloads' | 'settings' | 'game'
@@ -39,6 +42,36 @@ interface SidebarProps {
   onDeleteGame: (game: Game) => void
   onToggleFavorite: (game: Game) => void
   onOpenFolder: (game: Game) => void
+  profile: UserProfile | null
+  onEditProfile: () => void
+}
+
+// Trạng thái dưới tên: đang chơi / đang mở game nào / mất mạng / trực tuyến
+function ProfileStatus({ games }: { games: Game[] }): React.JSX.Element {
+  const { runningIds } = useLauncher()
+  const online = useOnline()
+  const playing = games.filter((g) => runningIds.get(g.id)?.phase === 'playing')
+  const open = games.filter((g) => runningIds.get(g.id)?.phase === 'launcher')
+  // Ưu tiên hiện game đang chơi thật
+  const [list, verb, className] =
+    playing.length > 0 ? [playing, 'Đang chơi', 'playing'] : [open, 'Đang mở', 'launcher-open']
+
+  if (list.length > 0) {
+    const label = list.length > 1 ? `${list[0].title} +${list.length - 1}` : list[0].title
+    return (
+      <span className={`profile-status ${className}`} title={list.map((g) => g.title).join(', ')}>
+        <span className="status-dot" />{' '}
+        <span className="profile-status-text">
+          {verb} {label}
+        </span>
+      </span>
+    )
+  }
+  return (
+    <span className={`profile-status ${online ? '' : 'offline'}`}>
+      <span className="status-dot" /> {online ? 'Trực tuyến' : 'Ngoại tuyến'}
+    </span>
+  )
 }
 
 export function Sidebar({
@@ -51,7 +84,9 @@ export function Sidebar({
   onEditGame,
   onDeleteGame,
   onToggleFavorite,
-  onOpenFolder
+  onOpenFolder,
+  profile,
+  onEditProfile
 }: SidebarProps): React.JSX.Element {
   const [filter, setFilter] = useState('')
   const { runningIds, launch } = useLauncher()
@@ -60,7 +95,7 @@ export function Sidebar({
 
   const menuItems = (game: Game): (MenuItem | 'divider')[] => [
     {
-      label: runningIds.has(game.id) ? 'Đang chạy' : 'Chơi',
+      label: runningLabel(runningIds.get(game.id)) ?? 'Chơi',
       icon: PlayIcon,
       disabled: runningIds.has(game.id),
       onClick: () => launch(game)
@@ -85,18 +120,20 @@ export function Sidebar({
 
   return (
     <aside className="sidebar">
-      <div className="sidebar-profile">
-        <div className="avatar">P</div>
-        <div className="profile-info">
-          <span className="profile-name">Player</span>
-          <span className="profile-status">
-            <span className="status-dot" /> Trực tuyến
-          </span>
-        </div>
-        <button className="icon-button" title="Bạn bè">
-          <UsersIcon />
-        </button>
-      </div>
+      <button className="sidebar-profile" title="Sửa hồ sơ" onClick={onEditProfile}>
+        <Avatar
+          name={profile?.displayName ?? DEFAULT_PROFILE_NAME}
+          type={profile?.avatar.type ?? 'initials'}
+          value={profile?.avatar.value ?? null}
+        />
+        <span className="profile-info">
+          <span className="profile-name">{profile?.displayName ?? DEFAULT_PROFILE_NAME}</span>
+          <ProfileStatus games={games} />
+        </span>
+        <span className="profile-edit">
+          <PencilIcon width={15} height={15} />
+        </span>
+      </button>
 
       <nav className="sidebar-nav">
         {NAV_ITEMS.map(({ key, label, icon: Icon }) => (
@@ -142,7 +179,12 @@ export function Sidebar({
               >
                 <GameThumb game={game} />
                 <span className="library-title">{game.title}</span>
-                {runningIds.has(game.id) && <span className="pulse-dot" title="Đang chạy" />}
+                {runningIds.get(game.id)?.phase === 'playing' && (
+                  <span className="pulse-dot" title="Đang chơi" />
+                )}
+                {runningIds.get(game.id)?.phase === 'launcher' && (
+                  <span className="open-dot" title="Đang mở launcher" />
+                )}
               </button>
             </li>
           ))}

@@ -27,6 +27,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getInstallInfo: (id: string, withSize?: boolean) =>
       ipcRenderer.invoke('games:getInstallInfo', id, withSize),
     openFolder: (id: string) => ipcRenderer.invoke('games:openFolder', id),
+    selectWatchDir: () => ipcRenderer.invoke('games:selectWatchDir'),
+    validateWatchDir: (path: string) => ipcRenderer.invoke('games:validateWatchDir', path),
+    getTrackingInfo: () => ipcRenderer.invoke('games:getTrackingInfo'),
+    acceptWatchDir: (id: string, dir: string) =>
+      ipcRenderer.invoke('games:acceptWatchDir', id, dir),
+    dismissWatchDir: (id: string, dir: string) =>
+      ipcRenderer.invoke('games:dismissWatchDir', id, dir),
+    // Gợi ý thư mục game khi launcher sinh ra exe ở thư mục lạ
+    onWatchDirSuggestion: (callback: (suggestion: unknown) => void) => {
+      const listener = (_e: IpcRendererEvent, payload: unknown): void => callback(payload)
+      ipcRenderer.on('games:watchDirSuggestion', listener)
+      return () => ipcRenderer.removeListener('games:watchDirSuggestion', listener)
+    },
+    setAutoDetect: (enabled: boolean) => ipcRenderer.invoke('games:setAutoDetect', enabled),
     // Đăng ký nhận sự kiện game bắt đầu/kết thúc, trả về hàm huỷ đăng ký
     onSessionChanged: (callback: (event: unknown) => void) => {
       const listener = (_e: IpcRendererEvent, payload: unknown): void => callback(payload)
@@ -50,6 +64,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getSites: () => ipcRenderer.invoke('news:getSites'),
     setSiteEnabled: (id: string, enabled: boolean) =>
       ipcRenderer.invoke('news:setSiteEnabled', id, enabled)
+  },
+  profile: {
+    get: () => ipcRenderer.invoke('profile:get'),
+    save: (input: unknown) => ipcRenderer.invoke('profile:save', input),
+    skipOnboarding: () => ipcRenderer.invoke('profile:skipOnboarding'),
+    pickAvatar: () => ipcRenderer.invoke('profile:pickAvatar'),
+    previewAvatar: (imagePath: string) => ipcRenderer.invoke('profile:previewAvatar', imagePath)
   },
   network: {
     getSettings: () => ipcRenderer.invoke('network:getSettings'),

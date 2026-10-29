@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useLauncher } from '../hooks/useLauncher'
 import { coverUrl, formatPlaytime, gameGradient, posterUrl } from '../utils/gameArt'
 import { GameIconArt } from './GameIconArt'
+import { RunningBadge } from './RunningBadge'
 import { PencilIcon, PlayIcon, StarIcon } from './Icons'
 
 interface GamePosterProps {
@@ -27,7 +28,7 @@ export function GamePoster({
   badge
 }: GamePosterProps): React.JSX.Element {
   const { runningIds, launchingId, launch } = useLauncher()
-  const running = runningIds.has(game.id)
+  const running = runningIds.get(game.id)
   const launching = launchingId === game.id
   const isFavorite = game.is_favorite === 1
   const poster = posterUrl(game)
@@ -70,11 +71,7 @@ export function GamePoster({
           </div>
         )}
 
-        {running && (
-          <span className="running-badge">
-            <span className="pulse-dot" /> Đang chạy
-          </span>
-        )}
+        {running && <RunningBadge info={running} />}
         {badge && !running && <span className="poster-badge">{badge}</span>}
 
         <div className="poster-actions">

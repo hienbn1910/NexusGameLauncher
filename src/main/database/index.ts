@@ -4,7 +4,7 @@ import { app } from 'electron'
 
 let db: Database.Database
 
-export function initDatabase() {
+export function initDatabase(): void {
   const dbPath = path.join(app.getPath('userData'), 'games.db')
   db = new Database(dbPath)
   db.pragma('journal_mode = WAL')

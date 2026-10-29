@@ -11,6 +11,7 @@
   --accent: #8b5cf6;
   --accent-soft: rgba(139, 92, 246, 0.15);
   --success: #34d399;
+  --open: #fbbf24; /* "Đang mở": launcher đã mở, chưa vào game */
   --radius: 10px;
   --sidebar-width: 248px;
   --statusbar-height: 28px;
@@ -32,11 +33,7 @@ body,
 body {
   background: var(--bg-0);
   color: var(--text-1);
-  font-family:
-    'Roboto Variable',
-    Roboto,
-    'Segoe UI',
-    sans-serif;
+  font-family: 'Roboto Variable', Roboto, 'Segoe UI', sans-serif;
   font-size: 14px;
   overflow: hidden;
   user-select: none;
@@ -112,19 +109,53 @@ ul {
   display: flex;
   align-items: center;
   gap: 10px;
+  width: 100%;
   padding: 8px;
   border-radius: var(--radius);
   background: var(--bg-2);
+  text-align: left;
+  transition: background 0.15s;
+}
+.sidebar-profile:hover {
+  background: var(--bg-3);
 }
 
 .avatar {
+  flex-shrink: 0;
   width: 36px;
   height: 36px;
   border-radius: 50%;
   display: grid;
   place-items: center;
+  overflow: hidden;
+  line-height: 1;
   font-weight: 700;
+  color: #fff;
   background: linear-gradient(135deg, var(--accent), #ec4899);
+}
+.avatar-image {
+  background: var(--bg-3);
+}
+.avatar-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Nút bút chì chỉ hiện rõ khi rê chuột vào thẻ hồ sơ */
+.profile-edit {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  color: var(--text-3);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.sidebar-profile:hover .profile-edit,
+.sidebar-profile:focus-visible .profile-edit {
+  opacity: 1;
 }
 
 .profile-info {
@@ -147,10 +178,31 @@ ul {
 }
 
 .status-dot {
+  flex-shrink: 0;
   width: 7px;
   height: 7px;
   border-radius: 50%;
   background: var(--success);
+}
+.profile-name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.profile-status.playing {
+  color: var(--success);
+}
+.profile-status.playing .status-dot {
+  animation: pulse-ring 1.6s ease-out infinite;
+}
+.profile-status.offline .status-dot {
+  background: var(--text-3);
+}
+.profile-status-text {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .icon-button {
@@ -1816,6 +1868,133 @@ select.input option {
   background: var(--accent-soft);
 }
 
+.settings-profile {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.settings-profile-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.settings-profile-info strong {
+  font-size: 15px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.settings-profile-info span {
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.tracking-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.tracking-settings .news-source {
+  align-self: flex-start;
+}
+
+/* ---------- Hộp thoại hồ sơ ---------- */
+
+.modal.profile-modal {
+  max-width: 500px;
+}
+.profile-welcome {
+  padding: 26px 20px 0;
+  text-align: center;
+}
+.profile-welcome h2 {
+  font-size: 20px;
+  background: linear-gradient(90deg, #22d3ee, var(--accent), #e040fb);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+.profile-welcome p {
+  margin-top: 6px;
+  color: var(--text-2);
+}
+
+.profile-editor {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.profile-name-field {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Avatar lớn: bấm để chọn ảnh, hoặc kéo-thả ảnh vào */
+.profile-avatar-drop {
+  position: relative;
+  flex-shrink: 0;
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 3px var(--bg-1),
+    0 0 0 5px var(--border);
+  transition: box-shadow 0.15s;
+}
+.profile-avatar-drop:hover,
+.profile-avatar-drop.drag-over {
+  box-shadow:
+    0 0 0 3px var(--bg-1),
+    0 0 0 5px var(--accent);
+}
+.profile-avatar-overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.profile-avatar-drop:hover .profile-avatar-overlay,
+.profile-avatar-drop.drag-over .profile-avatar-overlay {
+  opacity: 1;
+}
+
+.avatar-options {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+}
+.avatar-option {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  background: var(--bg-2);
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+.avatar-option:hover {
+  background: var(--bg-3);
+}
+.avatar-option.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.avatar-option.upload {
+  color: var(--text-2);
+  border: 1px dashed var(--border);
+}
+.avatar-option.upload.active {
+  border-style: solid;
+  border-color: var(--accent);
+}
+
 /* ---------- Status bar ---------- */
 
 .statusbar {
@@ -1839,6 +2018,126 @@ select.input option {
 .statusbar-playing .pulse-dot {
   width: 6px;
   height: 6px;
+}
+.statusbar-sessions {
+  display: inline-flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+.statusbar-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--open);
+}
+.statusbar-open .open-dot {
+  width: 6px;
+  height: 6px;
+}
+
+/* ---------- "Đang mở": mới mở launcher, chưa vào game (không đếm giờ) ---------- */
+
+.open-dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--open);
+}
+.btn-running.launcher-open {
+  color: var(--open);
+  background: rgba(251, 191, 36, 0.1);
+  border-color: rgba(251, 191, 36, 0.4);
+}
+.profile-status.launcher-open {
+  color: var(--open);
+}
+.profile-status.launcher-open .status-dot {
+  background: var(--open);
+}
+.running-card.launcher-open .running-card-status {
+  color: var(--open);
+}
+.running-card.launcher-open .running-card-clock {
+  opacity: 0.5;
+}
+
+/* ---------- Gợi ý thư mục game ---------- */
+
+.dir-suggestion {
+  position: fixed;
+  right: 20px;
+  bottom: calc(var(--statusbar-height) + 16px);
+  z-index: 210;
+  display: flex;
+  gap: 12px;
+  width: 380px;
+  padding: 16px;
+  border-radius: 12px;
+  font-size: 13px;
+  line-height: 1.45;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  animation: pop-in 0.18s ease-out;
+}
+.dir-suggestion-icon {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.dir-suggestion-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.dir-suggestion-body strong {
+  padding-right: 18px;
+}
+.dir-suggestion-body p {
+  margin: 0;
+  color: var(--text-2);
+}
+.dir-suggestion-body code {
+  color: var(--text-1);
+}
+.dir-suggestion-path {
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--text-1);
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  overflow-wrap: anywhere;
+}
+.dir-suggestion-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+.dir-suggestion-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  color: var(--text-3);
+}
+.dir-suggestion-close:hover {
+  color: var(--text-1);
+  background: var(--bg-3);
 }
 
 /* ---------- Toast ---------- */
@@ -1963,16 +2262,36 @@ select.input option {
   height: 7px;
 }
 
+/* Dải ảnh nhỏ: chỉ đủ chỗ cho 3 game, lăn chuột / kéo để xem game khác */
 .featured-thumbs {
+  --thumb-width: 78px;
+  --thumb-gap: 8px;
   position: absolute;
-  right: 20px;
-  bottom: 20px;
+  right: 16px;
+  bottom: 16px;
   display: flex;
-  gap: 8px;
+  gap: var(--thumb-gap);
+  /* Chừa 4px quanh ảnh cho viền sáng và hiệu ứng nhấc lên khi rê chuột */
+  padding: 4px;
+  max-width: calc(var(--thumb-width) * 3 + var(--thumb-gap) * 2 + 8px);
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+.featured-thumbs::-webkit-scrollbar {
+  display: none;
+}
+/* Chừa chỗ bên phải cho dải ảnh nhỏ để nút bấm không bị chèn lên */
+.featured.has-thumbs .featured-content {
+  max-width: min(560px, calc(100% - 300px));
+}
+.featured-actions {
+  flex-wrap: wrap;
 }
 .featured-thumb {
   position: relative;
-  width: 78px;
+  flex-shrink: 0;
+  width: var(--thumb-width);
   aspect-ratio: 16 / 9;
   border-radius: 6px;
   overflow: hidden;
@@ -1988,12 +2307,22 @@ select.input option {
     transform 0.2s,
     border-color 0.2s;
 }
-.featured-thumb img {
+/* Ảnh bìa của game (không áp cho nền mờ / icon của game ngoài Steam) */
+.featured-thumb > img:not(.icon-backdrop) {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+/* Game ngoài Steam: ảnh nhỏ nên làm mờ ít hơn ảnh bìa lớn */
+.featured-thumb .icon-backdrop {
+  filter: blur(8px) saturate(1.4) brightness(0.62);
+}
+.featured-thumb-icon {
+  position: relative;
+  width: 26px;
+  height: 26px;
 }
 .featured-thumb:hover {
   opacity: 0.9;
@@ -2867,11 +3196,20 @@ select.input option {
   align-items: center;
   gap: 8px;
 }
+/* Nút phụ cạnh nút Chơi: cao bằng nút Chơi cho cân đối */
 .detail-icon-btn {
-  width: 40px;
+  width: 50px;
+  height: 42px;
   padding: 0;
   justify-content: center;
-  font-size: 18px;
+  font-size: 20px;
+}
+.detail-icon-btn svg {
+  width: 19px;
+  height: 19px;
+}
+.detail-actions .btn {
+  min-height: 42px;
 }
 .detail-icon-btn.favorite {
   color: #facc15;

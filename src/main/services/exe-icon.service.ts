@@ -76,7 +76,7 @@ async function iconOf(filePath: string): Promise<Buffer | null> {
 // Kết quả tìm exe tiến trình, key = exe_path|process_name
 const processPathCache = new Map<string, string[]>()
 
-async function processExePaths(game: Game): Promise<string[]> {
+export async function processExePaths(game: Game): Promise<string[]> {
   const key = `${game.exe_path}|${game.process_name ?? ''}`
   let paths = processPathCache.get(key)
   if (!paths) {

@@ -20,6 +20,7 @@ export interface Game {
   process_name: string | null
   art_lookup: string | null
   notes: string | null
+  watch_dirs: string | null // Thư mục theo dõi giờ chơi, mỗi dòng một thư mục
   created_at: string
   updated_at: string
 }
@@ -30,9 +31,29 @@ export interface CreateGameInput {
   exe_path: string
   genre?: string
   process_name?: string
+  watch_dirs?: string[]
 }
 
-// Kiểu dữ liệu khi sửa game (genre / process_name = '' nghĩa là xoá giá trị)
+// Danh sách thư mục => chuỗi lưu DB (bỏ trùng, bỏ dòng trống; rỗng => null = tự động)
+function packDirs(dirs: unknown): string | null {
+  if (!Array.isArray(dirs)) return null
+  const seen = new Set<string>()
+  const list: string[] = []
+  for (const dir of dirs) {
+    const value = typeof dir === 'string' ? dir.trim() : ''
+    if (value && !seen.has(value.toLowerCase())) {
+      seen.add(value.toLowerCase())
+      list.push(value)
+    }
+  }
+  return list.length > 0 ? list.slice(0, 10).join('\n') : null
+}
+
+export function unpackDirs(value: string | null): string[] {
+  return value ? value.split('\n').filter(Boolean) : []
+}
+
+// Kiểu dữ liệu khi sửa game (genre / process_name = '', watch_dirs = [] nghĩa là xoá giá trị)
 export interface UpdateGameInput extends Partial<CreateGameInput> {
   is_favorite?: boolean
 }
@@ -66,8 +87,8 @@ export function createGame(input: CreateGameInput): Game {
   const db = getDb()
   const stmt = db.prepare(`
     INSERT INTO games
-      (id, title, exe_path, source, source_id, genre, process_name, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (id, title, exe_path, source, source_id, genre, process_name, watch_dirs, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `)
 
   stmt.run(
@@ -78,6 +99,7 @@ export function createGame(input: CreateGameInput): Game {
     source_id,
     input.genre || null,
     input.process_name?.trim() || null,
+    packDirs(input.watch_dirs),
     now,
     now
   )
@@ -97,7 +119,7 @@ export function updateGame(id: string, input: UpdateGameInput): Game | undefined
   const stmt = db.prepare(`
     UPDATE games
     SET title = ?, exe_path = ?, source = ?, source_id = ?, genre = ?, process_name = ?,
-        is_favorite = ?, updated_at = ?
+        watch_dirs = ?, is_favorite = ?, updated_at = ?
     WHERE id = ?
   `)
 
@@ -108,6 +130,7 @@ export function updateGame(id: string, input: UpdateGameInput): Game | undefined
     source_id,
     input.genre !== undefined ? input.genre || null : existing.genre,
     input.process_name !== undefined ? input.process_name.trim() || null : existing.process_name,
+    input.watch_dirs !== undefined ? packDirs(input.watch_dirs) : existing.watch_dirs,
     input.is_favorite !== undefined ? Number(input.is_favorite) : existing.is_favorite,
     now,
     id

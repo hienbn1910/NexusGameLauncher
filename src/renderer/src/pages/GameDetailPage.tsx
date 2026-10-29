@@ -72,7 +72,9 @@ export function GameDetailPage({
   const [failedLogo, setFailedLogo] = useState<string | null>(null)
   const ambient = useArtColor(game)
 
-  const startedAt = runningIds.get(game.id)
+  // Đồng hồ chỉ chạy khi game thật đang chạy (mới mở launcher thì chưa đếm)
+  const running = runningIds.get(game.id)
+  const startedAt = running?.phase === 'playing' ? (running.startedAt ?? undefined) : undefined
   const cover = coverUrl(game)
   const logo = logoUrl(game)
   const appId = game.steam_app_id ?? game.source_id

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useWheelScroll } from '../hooks/useWheelScroll'
 import type { IconComponent } from './Icons'
 
 interface ShelfProps {
@@ -12,7 +13,7 @@ interface ShelfProps {
   children: React.ReactNode
 }
 
-// Một "kệ" game: tiêu đề + hàng cuộn ngang, có nút cuộn trái/phải
+// Một "kệ" game: tiêu đề + hàng cuộn ngang, có nút cuộn trái/phải, lăn chuột để cuộn ngang
 export function Shelf({
   title,
   icon: Icon,
@@ -23,6 +24,7 @@ export function Shelf({
 }: ShelfProps): React.JSX.Element {
   const trackRef = useRef<HTMLDivElement>(null)
   const [edges, setEdges] = useState({ left: false, right: false })
+  useWheelScroll(trackRef)
 
   const updateEdges = (): void => {
     const el = trackRef.current

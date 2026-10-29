@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useLauncher } from '../hooks/useLauncher'
+import { useWheelScroll } from '../hooks/useWheelScroll'
 import {
   coverUrl,
   formatPlaytime,
@@ -35,7 +36,8 @@ export function FeaturedBanner({
   const cover = coverUrl(game)
   const logo = logoUrl(game)
   const { runningIds } = useLauncher()
-  const running = runningIds.has(game.id)
+  const runningInfo = runningIds.get(game.id)
+  const running = runningInfo?.phase === 'playing'
   const [paused, setPaused] = useState(false)
   // Logo lỗi (file bị xoá...) => hiện tên game dạng chữ
   const [failedLogo, setFailedLogo] = useState<string | null>(null)
@@ -43,6 +45,18 @@ export function FeaturedBanner({
 
   const canRotate = rotation.length > 1
   const index = rotation.findIndex((g) => g.id === game.id)
+  // Dải ảnh nhỏ chỉ hiện 3 game, lăn chuột để cuộn xem game khác
+  const thumbsRef = useRef<HTMLDivElement>(null)
+  useWheelScroll(thumbsRef, canRotate)
+
+  // Đổi game (tự xoay vòng / bấm) => cuộn ảnh nhỏ của game đó vào giữa dải
+  useEffect(() => {
+    const strip = thumbsRef.current
+    const active = strip?.children[index] as HTMLElement | undefined
+    if (!strip || !active) return
+    const left = active.offsetLeft - (strip.clientWidth - active.offsetWidth) / 2
+    strip.scrollTo({ left, behavior: 'smooth' })
+  }, [index])
 
   // Tự chuyển sang game tiếp theo, dừng khi rê chuột vào banner
   useEffect(() => {
@@ -55,15 +69,17 @@ export function FeaturedBanner({
 
   const badge = running
     ? 'Đang chơi'
-    : game.last_played
-      ? 'Tiếp tục chơi'
-      : game.is_favorite === 1
-        ? 'Yêu thích'
-        : 'Nổi bật'
+    : runningInfo
+      ? 'Đang mở'
+      : game.last_played
+        ? 'Tiếp tục chơi'
+        : game.is_favorite === 1
+          ? 'Yêu thích'
+          : 'Nổi bật'
 
   return (
     <section
-      className={`featured ${paused ? 'paused' : ''}`}
+      className={`featured ${paused ? 'paused' : ''} ${canRotate ? 'has-thumbs' : ''}`}
       style={{ background: gameGradient(game.title) }}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
@@ -89,7 +105,8 @@ export function FeaturedBanner({
       <div className="featured-content" key={game.id}>
         <span className="featured-badge">
           {running && <span className="pulse-dot" />}
-          {!running && game.is_favorite === 1 && <StarIcon width={12} height={12} />}
+          {!running && runningInfo && <span className="open-dot" />}
+          {!runningInfo && game.is_favorite === 1 && <StarIcon width={12} height={12} />}
           {badge}
         </span>
 
@@ -125,7 +142,7 @@ export function FeaturedBanner({
       </div>
 
       {canRotate && (
-        <div className="featured-thumbs">
+        <div className="featured-thumbs" ref={thumbsRef}>
           {rotation.map((g) => {
             const thumb = coverUrl(g)
             const active = g.id === game.id
@@ -140,7 +157,13 @@ export function FeaturedBanner({
                 {thumb ? (
                   <img src={thumb} alt="" draggable={false} />
                 ) : (
-                  <span>{gameInitials(g.title)}</span>
+                  // Game ngoài Steam: nền icon phóng to làm mờ + icon ở giữa (như ảnh bìa)
+                  <GameIconArt
+                    game={g}
+                    className="featured-thumb-icon"
+                    backdrop
+                    fallback={<span>{gameInitials(g.title)}</span>}
+                  />
                 )}
                 {/* Thanh chạy cho biết còn bao lâu thì chuyển game; rê chuột vào banner thì
                     ẩn, rời chuột thì chạy lại từ đầu cùng với bộ hẹn giờ */}

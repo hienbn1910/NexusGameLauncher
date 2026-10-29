@@ -10,6 +10,8 @@ import { registerMediaProtocol, registerMediaScheme } from './services/cover.ser
 import { autoFetchAllArt } from './services/steam-art.service'
 import { cleanupTempDownloads } from './services/steamgriddb.service'
 import { registerNewsHandlers } from './ipc/news.ipc'
+import { registerProfileHandlers } from './ipc/profile.ipc'
+import { startTracker } from './services/play-tracker.service'
 import { applyNetworkSettings } from './services/network.service'
 import { cleanupNewsImages } from './services/news-image.service'
 
@@ -74,6 +76,8 @@ app.whenReady().then(async () => {
   registerMediaProtocol()
   registerSteamGridDbHandlers()
   registerNewsHandlers()
+  registerProfileHandlers()
+  startTracker() // Theo dõi giờ chơi + tự nhận game mở ngoài Nexus
   void cleanupTempDownloads()
   void cleanupNewsImages()
   // DNS bảo mật / proxy người dùng đã chọn (lỗi thì vẫn mở app với mạng mặc định)

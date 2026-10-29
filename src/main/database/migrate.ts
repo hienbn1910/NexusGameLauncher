@@ -1,6 +1,6 @@
 import { getDb } from './index'
 
-export function runMigrations() {
+export function runMigrations(): void {
   const db = getDb()
   db.exec(`
     CREATE TABLE IF NOT EXISTS games (
@@ -92,4 +92,25 @@ export function runMigrations() {
   if (!has('notes')) {
     db.exec('ALTER TABLE games ADD COLUMN notes TEXT')
   }
+
+  // Thư mục theo dõi giờ chơi do người dùng chọn (mỗi dòng một thư mục, null = tự động)
+  if (!has('watch_dirs')) {
+    db.exec('ALTER TABLE games ADD COLUMN watch_dirs TEXT')
+  }
+
+  // Hồ sơ người dùng. Hiện chỉ có một hồ sơ trên máy (account_type = 'local');
+  // remote_id dành cho lúc có tài khoản online: gắn hồ sơ trên máy với tài khoản trên máy chủ
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS profile (
+      id TEXT PRIMARY KEY,
+      display_name TEXT NOT NULL,
+      avatar_type TEXT NOT NULL DEFAULT 'initials',
+      avatar_value TEXT,
+      account_type TEXT NOT NULL DEFAULT 'local',
+      remote_id TEXT,
+      onboarded INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+    )
+  `)
 }

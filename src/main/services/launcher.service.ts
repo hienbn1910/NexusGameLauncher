@@ -1,160 +1,15 @@
 import { spawn, type ChildProcess } from 'child_process'
 import { existsSync } from 'fs'
-import { basename, dirname, extname } from 'path'
-import { app, BrowserWindow, shell } from 'electron'
+import { dirname, extname } from 'path'
+import { shell } from 'electron'
 import * as gameService from './game.service'
 import type { Game } from './game.service'
-import { collectExeNames, listProcessNames, parseProcessNames } from './process.service'
+import { isTracking, trackLaunch } from './play-tracker.service'
 
 export type LaunchResult = { ok: true; game: Game } | { ok: false; error: string }
 
-export interface SessionEvent {
-  gameId: string
-  running: boolean
-  game?: Game
-  startedAt?: number // Thời điểm bắt đầu phiên (ms), có khi running = true
-}
-
-// Phiên ngắn hơn mức này (mở nhầm, game lỗi) không ghi vào lịch sử
-const MIN_SESSION_MS = 60_000
-
-const POLL_INTERVAL_MS = 5_000
-// Số lần kiểm tra liên tiếp không thấy tiến trình nào thì coi như đã tắt game
-// (chừa thời gian cho khoảng trống giữa lúc launcher tắt và game bật lên)
-const MISS_LIMIT = 4
-// Chỉ định tiến trình nhưng mãi không thấy nó chạy (game lỗi, người dùng tắt launcher...)
-const NOT_SEEN_TIMEOUT_MS = 5 * 60_000
-
-interface Session {
-  // 'explicit': chỉ tính giờ khi tiến trình người dùng chỉ định đang chạy
-  // 'auto': tính giờ khi còn bất kỳ exe nào trong thư mục game đang chạy
-  mode: 'explicit' | 'auto'
-  watchNames: Set<string>
-  childAlive: boolean
-  waitingSince: number // Mốc để tính timeout khi chưa thấy tiến trình game
-  seen: boolean
-  missCount: number
-  active: boolean // Lần kiểm tra gần nhất game có đang chạy không
-  lastTick: number
-  playedMs: number
-  startedAt: number
-}
-
-// Các game đang được theo dõi (key = game id)
-const sessions = new Map<string, Session>()
-let pollTimer: NodeJS.Timeout | null = null
-let polling = false
-
-export function isSteamUri(path: string): boolean {
+function isSteamUri(path: string): boolean {
   return /^steam:\/\//i.test(path.trim())
-}
-
-export function getRunningGameIds(): string[] {
-  return [...sessions.keys()]
-}
-
-export function getRunningSessions(): { gameId: string; startedAt: number }[] {
-  return [...sessions].map(([gameId, s]) => ({ gameId, startedAt: s.startedAt }))
-}
-
-// Gửi trạng thái chơi game tới tất cả cửa sổ renderer
-function broadcast(event: SessionEvent): void {
-  for (const win of BrowserWindow.getAllWindows()) {
-    win.webContents.send('games:sessionChanged', event)
-  }
-}
-
-function endSession(gameId: string): void {
-  const session = sessions.get(gameId)
-  if (!session) return
-  sessions.delete(gameId)
-  if (sessions.size === 0) stopPolling()
-
-  // Cộng nốt khoảng thời gian từ lần kiểm tra cuối nếu game vẫn đang chạy
-  if (session.active) session.playedMs += Date.now() - session.lastTick
-
-  const hours = session.playedMs / 3_600_000
-  if (session.playedMs >= MIN_SESSION_MS) {
-    gameService.addPlaySession(gameId, new Date(session.startedAt), new Date(), hours)
-  }
-  const game = gameService.recordPlaySession(gameId, hours)
-  broadcast({ gameId, running: false, game })
-}
-
-// ---------- Theo dõi tiến trình ----------
-
-function updateSession(gameId: string, session: Session, running: Set<string>): void {
-  const now = Date.now()
-  const anyRunning = [...session.watchNames].some((name) => running.has(name))
-  const active = session.mode === 'auto' ? anyRunning || session.childAlive : anyRunning
-
-  if (session.active) session.playedMs += now - session.lastTick
-  session.active = active
-  session.lastTick = now
-
-  if (active) {
-    session.seen = true
-    session.missCount = 0
-    return
-  }
-
-  if (session.seen) {
-    // Đã từng chạy, giờ không còn: chờ thêm vài lượt rồi mới kết thúc
-    if (++session.missCount >= MISS_LIMIT) endSession(gameId)
-  } else if (!session.childAlive && now - session.waitingSince > NOT_SEEN_TIMEOUT_MS) {
-    endSession(gameId)
-  }
-}
-
-async function poll(): Promise<void> {
-  if (polling || sessions.size === 0) return
-  polling = true
-  try {
-    const running = await listProcessNames()
-    for (const [gameId, session] of sessions) updateSession(gameId, session, running)
-  } finally {
-    polling = false
-  }
-}
-
-function startPolling(): void {
-  if (!pollTimer) pollTimer = setInterval(poll, POLL_INTERVAL_MS)
-}
-
-function stopPolling(): void {
-  if (pollTimer) clearInterval(pollTimer)
-  pollTimer = null
-}
-
-function startSession(
-  gameId: string,
-  mode: Session['mode'],
-  watchNames: Set<string>,
-  child: ChildProcess | null
-): void {
-  const now = Date.now()
-  const session: Session = {
-    mode,
-    watchNames,
-    childAlive: !!child,
-    waitingSince: now,
-    seen: false,
-    missCount: 0,
-    active: mode === 'auto', // Auto: launcher vừa bật nên tính là đang chạy
-    lastTick: now,
-    playedMs: 0,
-    startedAt: now
-  }
-  sessions.set(gameId, session)
-
-  child?.once('exit', () => {
-    session.childAlive = false
-    session.waitingSince = Date.now()
-    // Kiểm tra ngay để không phải chờ hết chu kỳ
-    void poll()
-  })
-
-  startPolling()
 }
 
 // ---------- Chạy exe ----------
@@ -229,10 +84,9 @@ async function startExe(exePath: string): Promise<ChildProcess> {
 export async function launchGame(id: string): Promise<LaunchResult> {
   const game = gameService.getGameById(id)
   if (!game) return { ok: false, error: 'Không tìm thấy game' }
-  if (sessions.has(id)) return { ok: false, error: `${game.title} đang chạy rồi` }
+  if (isTracking(id)) return { ok: false, error: `${game.title} đang chạy rồi` }
 
   const target = game.exe_path.trim()
-  const explicitNames = parseProcessNames(game.process_name ?? '')
 
   try {
     let child: ChildProcess | null = null
@@ -250,29 +104,12 @@ export async function launchGame(id: string): Promise<LaunchResult> {
       child = await startExe(target)
     }
 
-    if (explicitNames.length > 0) {
-      // Có chỉ định tiến trình game => theo dõi được cả game Steam / shortcut
-      startSession(id, 'explicit', new Set(explicitNames), child)
-    } else if (child) {
-      // Không chỉ định: theo dõi mọi exe trong thư mục game (launcher -> game)
-      const names = await collectExeNames(dirname(target))
-      names.add(basename(target).toLowerCase())
-      startSession(id, 'auto', names, child)
-    }
-    // Steam / shortcut không chỉ định tiến trình: không theo dõi được, chỉ ghi lần chơi cuối
-
-    const updated = gameService.recordPlaySession(id, 0)!
-    const session = sessions.get(id)
-    if (session) {
-      broadcast({ gameId: id, running: true, game: updated, startedAt: session.startedAt })
-    }
-    return { ok: true, game: updated }
+    // Theo dõi giờ chơi theo thư mục game (cả game Steam / shortcut nếu biết thư mục cài)
+    const tracked = await trackLaunch(game, child)
+    // Không theo dõi được: vẫn ghi lại lần chơi cuối
+    if (!tracked) gameService.recordPlaySession(id, 0)
+    return { ok: true, game: gameService.getGameById(id)! }
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : 'Không thể mở game' }
   }
 }
-
-// Thoát launcher khi game còn chạy: lưu lại giờ chơi tính tới thời điểm này
-app.on('before-quit', () => {
-  for (const id of getRunningGameIds()) endSession(id)
-})

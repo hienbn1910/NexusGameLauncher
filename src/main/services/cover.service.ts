@@ -7,6 +7,7 @@ import { getGameIcon } from './exe-icon.service'
 import * as gameService from './game.service'
 import type { Game } from './game.service'
 import { newsImageResponse } from './news-image.service'
+import { avatarResponse } from './profile.service'
 
 export const MEDIA_SCHEME = 'game-media'
 export const COVER_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp', 'bmp']
@@ -42,6 +43,7 @@ async function exeIcon(gameId: string): Promise<Response> {
 
 // game-media://cover/<tên file>: chỉ phục vụ file nằm trong thư mục covers
 // game-media://icon/<gameId>: icon của file exe game
+// game-media://avatar/<tên file>: ảnh đại diện người dùng
 export function registerMediaProtocol(): void {
   protocol.handle(MEDIA_SCHEME, (request) => {
     const url = new URL(request.url)
@@ -49,6 +51,7 @@ export function registerMediaProtocol(): void {
 
     if (url.host === 'icon' && /^[\w-]+$/.test(name)) return exeIcon(name)
     if (url.host === 'news-image') return newsImageResponse(name)
+    if (url.host === 'avatar') return avatarResponse(name)
     if (url.host === 'cover' && SAFE_FILE_NAME.test(name)) {
       return net.fetch(pathToFileURL(join(coversDir(), name)).toString())
     }

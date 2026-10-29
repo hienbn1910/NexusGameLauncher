@@ -4,6 +4,7 @@ import { coverUrl, gameGradient, posterUrl } from '../utils/gameArt'
 import { CoverPicker } from './CoverPicker'
 import { CoverSearchModal } from './CoverSearchModal'
 import { FolderIcon, PlusIcon, SaveIcon, SearchIcon, StarIcon, TrashIcon, XIcon } from './Icons'
+import { WatchDirField } from './WatchDirField'
 
 const SUGGESTION_LABEL: Record<NameSuggestion['source'], string> = {
   metadata: 'Từ thông tin exe',
@@ -64,7 +65,8 @@ export function GameFormModal({
   const [exePath, setExePath] = useState(isSteamUri(initialPath) ? '' : initialPath)
   const [steamInput, setSteamInput] = useState(isSteamUri(initialPath) ? initialPath : '')
   const [genre, setGenre] = useState(game?.genre ?? '')
-  const [processName, setProcessName] = useState(game?.process_name ?? '')
+  // Thư mục game để tính giờ chơi (để trống = thư mục cài game)
+  const [watchDir, setWatchDir] = useState(game?.watch_dirs?.split('\n')[0] ?? '')
   const [favorite, setFavorite] = useState(game?.is_favorite === 1)
   // Gợi ý tên game; titleTouched = người dùng đã tự gõ tên thì không ghi đè nữa
   const [suggestions, setSuggestions] = useState<NameSuggestion[]>([])
@@ -163,13 +165,6 @@ export function GameFormModal({
     setImages((prev) => ({ ...prev, [kind]: { preview: null, source: null, removed: true } }))
   }
 
-  // Chọn file exe của game thật, chỉ lấy tên file (vd Game.exe)
-  const pickProcess = async (): Promise<void> => {
-    const path = await window.electronAPI.games.selectExe()
-    if (!path) return
-    setProcessName(path.split(/[\\/]/).pop() ?? '')
-  }
-
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault()
     if (!title.trim()) return setError('Vui lòng nhập tên game')
@@ -206,7 +201,7 @@ export function GameFormModal({
           title: title.trim(),
           exe_path: launchPath,
           genre,
-          process_name: processName,
+          watch_dirs: watchDir.trim() ? [watchDir.trim()] : [],
           is_favorite: favorite
         })
       } else {
@@ -214,7 +209,7 @@ export function GameFormModal({
           title: title.trim(),
           exe_path: launchPath,
           genre: genre || undefined,
-          process_name: processName || undefined
+          watch_dirs: watchDir.trim() ? [watchDir.trim()] : []
         })
         if (favorite) {
           saved = await window.electronAPI.games.update(saved.id, { is_favorite: true })
@@ -440,28 +435,12 @@ export function GameFormModal({
                 )}
               </div>
 
-              <div className="field">
-                <span className="field-label">
-                  Tiến trình game <span className="field-optional">(không bắt buộc)</span>
-                </span>
-                <div className="file-picker">
-                  <input
-                    className="file-picker-input"
-                    placeholder="Vd: Game.exe"
-                    value={processName}
-                    onChange={(e) => setProcessName(e.target.value)}
-                  />
-                  <button type="button" className="btn btn-secondary" onClick={pickProcess}>
-                    <FolderIcon width={16} height={16} />
-                    Chọn exe
-                  </button>
-                </div>
-                <span className="field-hint">
-                  {mode === 'steam'
-                    ? 'Điền exe của game để launcher tính được giờ chơi cho game Steam.'
-                    : 'Điền khi file ở trên chỉ là launcher của game. Để trống thì tự theo dõi mọi exe trong thư mục game.'}
-                </span>
-              </div>
+              <WatchDirField
+                gameId={game?.id}
+                mode={mode}
+                value={watchDir}
+                onChange={setWatchDir}
+              />
 
               <label className="field">
                 <span className="field-label">

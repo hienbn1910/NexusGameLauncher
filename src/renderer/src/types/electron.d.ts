@@ -6,9 +6,11 @@ declare global {
     exe_path: string
     genre?: string
     process_name?: string
+    // Thư mục theo dõi giờ chơi thêm vào (ngoài thư mục cài game)
+    watch_dirs?: string[]
   }
 
-  // genre / process_name = '' để xoá giá trị
+  // genre / process_name = '', watch_dirs = [] để xoá giá trị
   interface GameUpdateInput extends Partial<GameInput> {
     is_favorite?: boolean
   }
@@ -29,6 +31,7 @@ declare global {
     last_played: string | null
     process_name: string | null
     notes: string | null
+    watch_dirs: string | null // Mỗi dòng một thư mục
     created_at: string
   }
 
@@ -69,11 +72,30 @@ declare global {
 
   type LaunchResult = { ok: true; game: Game } | { ok: false; error: string }
 
+  // launcher: mới mở launcher, chưa vào game (không đếm giờ); playing: game thật đang chạy
+  type SessionPhase = 'launcher' | 'playing'
+
   interface GameSessionEvent {
     gameId: string
     running: boolean
+    phase?: SessionPhase
     game?: Game
-    startedAt?: number
+    // Mốc cho đồng hồ phiên chơi (now - startedAt = thời gian đã chơi), null khi chưa vào game
+    startedAt?: number | null
+  }
+
+  // Trạng thái game đang mở trên giao diện
+  interface RunningInfo {
+    phase: SessionPhase
+    startedAt: number | null
+  }
+
+  // Launcher sinh ra exe ở thư mục lạ chạy lâu => gợi ý dùng làm thư mục game
+  interface WatchDirSuggestion {
+    gameId: string
+    title: string
+    dir: string
+    exeName: string
   }
 
   type NewsTab = 'library' | 'following' | 'sites'
@@ -129,9 +151,8 @@ declare global {
     error?: string
   }
 
-  interface RunningSession {
+  interface RunningSession extends RunningInfo {
     gameId: string
-    startedAt: number // ms
   }
 
   interface PlayStats {
@@ -178,6 +199,33 @@ declare global {
     source: 'metadata' | 'folder' | 'file'
   }
 
+  // Hồ sơ người dùng (hiện lưu trên máy; accountType 'remote' dành cho tài khoản online sau này)
+  type AvatarType = 'initials' | 'preset' | 'image'
+
+  interface UserProfile {
+    id: string
+    displayName: string
+    // preset: mã avatar có sẵn, image: game-media://avatar/...
+    avatar: { type: AvatarType; value: string | null }
+    accountType: 'local' | 'remote'
+    onboarded: boolean
+    createdAt: string
+  }
+
+  // image: path = ảnh mới chọn; không có path = giữ ảnh hiện tại
+  type AvatarInput =
+    { type: 'initials' } | { type: 'preset'; value: string } | { type: 'image'; path?: string }
+
+  interface ProfileInput {
+    displayName: string
+    avatar: AvatarInput
+  }
+
+  interface TrackingInfo {
+    autoDetect: boolean // Tự nhận game mở ngoài Nexus
+    nativeProcessApi: boolean // Đang dùng API Windows (false = tasklist, chậm hơn)
+  }
+
   interface ElectronAPI {
     games: {
       getAll: () => Promise<Game[]>
@@ -207,6 +255,14 @@ declare global {
       getInstallInfo: (id: string, withSize?: boolean) => Promise<InstallInfo>
       // null = mở được, chuỗi = thông báo lỗi
       openFolder: (id: string) => Promise<string | null>
+      // null = huỷ; error = thư mục không dùng được (quá chung, không tồn tại)
+      selectWatchDir: () => Promise<{ path: string; error: string | null } | null>
+      validateWatchDir: (path: string) => Promise<string | null>
+      getTrackingInfo: () => Promise<TrackingInfo>
+      acceptWatchDir: (id: string, dir: string) => Promise<Game | undefined>
+      dismissWatchDir: (id: string, dir: string) => Promise<void>
+      onWatchDirSuggestion: (callback: (suggestion: WatchDirSuggestion) => void) => () => void
+      setAutoDetect: (enabled: boolean) => Promise<boolean>
       onSessionChanged: (callback: (event: GameSessionEvent) => void) => () => void
       onUpdated: (callback: (game: Game) => void) => () => void
     }
@@ -219,6 +275,13 @@ declare global {
       unfollow: (id: string) => Promise<FollowedGame[]>
       getSites: () => Promise<NewsSite[]>
       setSiteEnabled: (id: string, enabled: boolean) => Promise<NewsSite[]>
+    }
+    profile: {
+      get: () => Promise<UserProfile>
+      save: (input: ProfileInput) => Promise<ApiResult<UserProfile>>
+      skipOnboarding: () => Promise<UserProfile>
+      pickAvatar: () => Promise<{ path: string; preview: string } | null>
+      previewAvatar: (imagePath: string) => Promise<{ path: string; preview: string } | null>
     }
     network: {
       getSettings: () => Promise<NetworkSettings>

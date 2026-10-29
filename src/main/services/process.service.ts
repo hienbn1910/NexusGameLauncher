@@ -1,10 +1,27 @@
 import { execFile } from 'child_process'
 import { readdir } from 'fs/promises'
 import { basename, join } from 'path'
+import { listWinProcesses, type WinProcess } from './win-process'
+
+export type ProcessInfo = WinProcess
+
+// Tất cả tiến trình đang chạy: tên + đường dẫn exe (null nếu không đọc được).
+// Windows: gọi thẳng API (~10ms); không được thì dùng tasklist / ps (~0.5s, chỉ có tên).
+export async function listProcesses(): Promise<ProcessInfo[]> {
+  const native = process.platform === 'win32' ? listWinProcesses() : null
+  if (native) return native
+  return [...(await listProcessNames())].map((name) => ({
+    pid: 0,
+    parentPid: 0,
+    name,
+    path: null,
+    rawPath: null
+  }))
+}
 
 // Lấy tên (viết thường) của tất cả tiến trình đang chạy.
 // tasklist thấy được cả tiến trình chạy bằng quyền admin, khác với việc đọc đường dẫn exe.
-export function listProcessNames(): Promise<Set<string>> {
+function listProcessNames(): Promise<Set<string>> {
   return new Promise((resolve) => {
     const [cmd, args] =
       process.platform === 'win32'
