@@ -22,10 +22,13 @@ declare global {
     genre: string | null
     cover_path: string | null
     poster_path: string | null
+    logo_path: string | null
+    steam_app_id: string | null
     is_favorite: number
     total_playtime: number
     last_played: string | null
     process_name: string | null
+    created_at: string
   }
 
   type LaunchResult = { ok: true; game: Game } | { ok: false; error: string }
@@ -34,6 +37,73 @@ declare global {
     gameId: string
     running: boolean
     game?: Game
+    startedAt?: number
+  }
+
+  type NewsTab = 'library' | 'following' | 'sites'
+
+  interface NewsItem {
+    id: string
+    title: string
+    url: string
+    date: number // ms
+    summary: string
+    image: string | null // game-media://news-image/...
+    origin: 'steam' | 'press' // Thông báo chính thức Steam / báo chí
+    sourceName: string
+    lang: 'vi' | 'en' | null
+    isPatch: boolean
+    gameId: string | null
+    gameName: string | null
+  }
+
+  interface NewsResult {
+    items: NewsItem[]
+    updatedAt: number | null
+    stale: boolean
+    steamBlocked: boolean
+  }
+
+  interface FollowedGame {
+    id: string
+    name: string
+    appId: string | null
+  }
+
+  interface NewsSite {
+    id: string
+    name: string
+    lang: 'vi' | 'en'
+    url: string
+    enabled: boolean
+  }
+
+  type DnsProvider = 'off' | 'cloudflare' | 'google'
+  type ProxyMode = 'system' | 'direct' | 'custom'
+
+  interface NetworkSettings {
+    dns: DnsProvider
+    proxyMode: ProxyMode
+    proxyUrl: string
+  }
+
+  interface ConnectionTest {
+    ok: boolean
+    ms: number
+    error?: string
+  }
+
+  interface RunningSession {
+    gameId: string
+    startedAt: number // ms
+  }
+
+  interface PlayStats {
+    days: { date: string; hours: number }[] // 14 ngày gần nhất, cũ => mới
+    weekHours: number
+    prevWeekHours: number
+    streak: number
+    topGame: { gameId: string; hours: number } | null
   }
 
   // Kết quả gọi SteamGridDB: lỗi được trả về dạng message thay vì throw
@@ -91,9 +161,26 @@ declare global {
       ) => Promise<Game | undefined>
       getPathForFile: (file: File) => string
       launch: (id: string) => Promise<LaunchResult>
-      getRunning: () => Promise<string[]>
+      getRunning: () => Promise<RunningSession[]>
+      getStats: () => Promise<PlayStats>
+      // Màu chủ đạo của ảnh game dạng "r, g, b"
+      getArtColor: (id: string) => Promise<string | null>
       onSessionChanged: (callback: (event: GameSessionEvent) => void) => () => void
       onUpdated: (callback: (game: Game) => void) => () => void
+    }
+    news: {
+      get: (tab: NewsTab, force?: boolean) => Promise<ApiResult<NewsResult>>
+      getFollowing: () => Promise<FollowedGame[]>
+      getSuggestions: () => Promise<FollowedGame[]>
+      follow: (name: string, appId: string | null) => Promise<ApiResult<FollowedGame[]>>
+      unfollow: (id: string) => Promise<FollowedGame[]>
+      getSites: () => Promise<NewsSite[]>
+      setSiteEnabled: (id: string, enabled: boolean) => Promise<NewsSite[]>
+    }
+    network: {
+      getSettings: () => Promise<NetworkSettings>
+      saveSettings: (settings: NetworkSettings) => Promise<ApiResult<NetworkSettings>>
+      testSteam: () => Promise<ConnectionTest>
     }
     steamGridDb: {
       isConfigured: () => Promise<boolean>

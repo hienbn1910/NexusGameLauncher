@@ -1,8 +1,8 @@
 import { createContext, useContext } from 'react'
 
 export interface LauncherContextValue {
-  // Game .exe đang chạy (launcher theo dõi được tiến trình)
-  runningIds: Set<string>
+  // Game đang chạy (launcher theo dõi được tiến trình): id => thời điểm bắt đầu (ms)
+  runningIds: ReadonlyMap<string, number>
   // Game đang trong lúc khởi động (đã bấm Chơi, chờ main process trả lời)
   launchingId: string | null
   launch: (game: Game) => void

@@ -57,7 +57,8 @@ export function registerGameHandlers() {
   ipcMain.handle(
     'games:setCover',
     (_event, id: string, imagePath: string | null, kind?: string) => {
-      return coverService.setCover(id, imagePath, kind === 'poster' ? 'poster' : 'cover')
+      const safeKind = kind === 'poster' || kind === 'logo' ? kind : 'cover'
+      return coverService.setCover(id, imagePath, safeKind)
     }
   )
 
@@ -102,6 +103,14 @@ export function registerGameHandlers() {
   })
 
   ipcMain.handle('games:getRunning', () => {
-    return launcherService.getRunningGameIds()
+    return launcherService.getRunningSessions()
+  })
+
+  ipcMain.handle('games:getArtColor', (_event, id: string) => {
+    return coverService.getArtColor(id)
+  })
+
+  ipcMain.handle('games:getStats', () => {
+    return gameService.getPlayStats()
   })
 }

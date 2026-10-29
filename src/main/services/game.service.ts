@@ -12,6 +12,8 @@ export interface Game {
   genre: string | null
   cover_path: string | null
   poster_path: string | null
+  logo_path: string | null
+  steam_app_id: string | null
   is_favorite: number
   total_playtime: number
   last_played: string | null
@@ -104,9 +106,7 @@ export function updateGame(id: string, input: UpdateGameInput): Game | undefined
     source,
     source_id,
     input.genre !== undefined ? input.genre || null : existing.genre,
-    input.process_name !== undefined
-      ? input.process_name.trim() || null
-      : existing.process_name,
+    input.process_name !== undefined ? input.process_name.trim() || null : existing.process_name,
     input.is_favorite !== undefined ? Number(input.is_favorite) : existing.is_favorite,
     now,
     id
@@ -115,11 +115,13 @@ export function updateGame(id: string, input: UpdateGameInput): Game | undefined
   return getGameById(id)
 }
 
-// column: cover_path (ảnh ngang) hoặc poster_path (ảnh dọc)
+export type ImageColumn = 'cover_path' | 'poster_path' | 'logo_path'
+
+// column: cover_path (ảnh ngang), poster_path (ảnh dọc) hoặc logo_path (logo trong suốt)
 export function updateCoverPath(
   id: string,
   coverPath: string | null,
-  column: 'cover_path' | 'poster_path' = 'cover_path'
+  column: ImageColumn = 'cover_path'
 ): Game | undefined {
   const db = getDb()
   db.prepare(`UPDATE games SET ${column} = ?, updated_at = ? WHERE id = ?`).run(
@@ -130,8 +132,100 @@ export function updateCoverPath(
   return getGameById(id)
 }
 
-export function setArtLookup(id: string, key: string): void {
-  getDb().prepare('UPDATE games SET art_lookup = ? WHERE id = ?').run(key, id)
+export function setArtLookup(id: string, key: string, steamAppId: string | null): void {
+  getDb()
+    .prepare('UPDATE games SET art_lookup = ?, steam_app_id = ? WHERE id = ?')
+    .run(key, steamAppId, id)
+}
+
+// ---------- Phiên chơi & thống kê ----------
+
+export function addPlaySession(
+  gameId: string,
+  startedAt: Date,
+  endedAt: Date,
+  hours: number
+): void {
+  getDb()
+    .prepare('INSERT INTO play_sessions (game_id, started_at, ended_at, hours) VALUES (?, ?, ?, ?)')
+    .run(gameId, startedAt.toISOString(), endedAt.toISOString(), hours)
+}
+
+export interface PlayStats {
+  // Giờ chơi từng ngày (giờ địa phương), 14 ngày gần nhất, cũ => mới
+  days: { date: string; hours: number }[]
+  weekHours: number // 7 ngày gần nhất (tính cả hôm nay)
+  prevWeekHours: number // 7 ngày trước đó
+  streak: number // Số ngày chơi liên tiếp tới hôm nay (hoặc hôm qua nếu hôm nay chưa chơi)
+  topGame: { gameId: string; hours: number } | null // Chơi nhiều nhất 7 ngày gần nhất
+}
+
+// YYYY-MM-DD theo giờ máy
+function localDate(d: Date): string {
+  const pad = (n: number): string => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
+function daysAgo(n: number): Date {
+  const d = new Date()
+  d.setHours(0, 0, 0, 0)
+  d.setDate(d.getDate() - n)
+  return d
+}
+
+export function getPlayStats(): PlayStats {
+  const db = getDb()
+  const since = daysAgo(13)
+
+  // Phiên chơi được tính vào ngày bắt đầu
+  const rows = db
+    .prepare(
+      `SELECT date(started_at, 'localtime') AS day, game_id, SUM(hours) AS hours
+       FROM play_sessions WHERE started_at >= ? GROUP BY day, game_id`
+    )
+    .all(since.toISOString()) as { day: string; game_id: string; hours: number }[]
+
+  const byDay = new Map<string, number>()
+  for (const r of rows) byDay.set(r.day, (byDay.get(r.day) ?? 0) + r.hours)
+
+  const days = Array.from({ length: 14 }, (_, i) => {
+    const date = localDate(daysAgo(13 - i))
+    return { date, hours: byDay.get(date) ?? 0 }
+  })
+  const sum = (list: typeof days): number => list.reduce((s, d) => s + d.hours, 0)
+
+  const weekStart = localDate(daysAgo(6))
+  const byGame = new Map<string, number>()
+  for (const r of rows) {
+    if (r.day >= weekStart) byGame.set(r.game_id, (byGame.get(r.game_id) ?? 0) + r.hours)
+  }
+  const top = [...byGame].sort((a, b) => b[1] - a[1])[0]
+
+  // Chuỗi ngày chơi: đếm lùi từ hôm nay (hoặc hôm qua) qua các ngày có chơi
+  const played = new Set(
+    (
+      db
+        .prepare(
+          `SELECT DISTINCT date(started_at, 'localtime') AS day FROM play_sessions
+           WHERE started_at >= ? AND hours > 0`
+        )
+        .all(daysAgo(400).toISOString()) as { day: string }[]
+    ).map((r) => r.day)
+  )
+  let streak = 0
+  let offset = played.has(localDate(daysAgo(0))) ? 0 : 1
+  while (played.has(localDate(daysAgo(offset)))) {
+    streak++
+    offset++
+  }
+
+  return {
+    days,
+    weekHours: sum(days.slice(7)),
+    prevWeekHours: sum(days.slice(0, 7)),
+    streak,
+    topGame: top ? { gameId: top[0], hours: top[1] } : null
+  }
 }
 
 // Cộng thêm giờ chơi và cập nhật lần chơi cuối (hours = 0 khi chỉ muốn đánh dấu vừa chơi)
@@ -149,6 +243,7 @@ export function recordPlaySession(id: string, hours: number): Game | undefined {
 
 export function deleteGame(id: string): boolean {
   const db = getDb()
+  db.prepare('DELETE FROM play_sessions WHERE game_id = ?').run(id)
   const stmt = db.prepare('DELETE FROM games WHERE id = ?')
   const result = stmt.run(id)
   return result.changes > 0

@@ -1,20 +1,74 @@
-import { coverUrl, formatPlaytime, gameAccent, gameGradient, gameInitials } from '../utils/gameArt'
+import { useEffect, useState } from 'react'
+import { useLauncher } from '../hooks/useLauncher'
+import {
+  coverUrl,
+  formatPlaytime,
+  formatRelative,
+  gameAccent,
+  gameGradient,
+  gameInitials,
+  logoUrl
+} from '../utils/gameArt'
 import { GameIconArt } from './GameIconArt'
 import { ClockIcon, PencilIcon, StarIcon } from './Icons'
 import { PlayButton } from './PlayButton'
 
+// Thời gian mỗi game hiển thị trước khi tự chuyển
+const ROTATE_MS = 8000
+
 interface FeaturedBannerProps {
   game: Game
+  // Các game xoay vòng trên banner (rỗng/1 game => không xoay)
+  rotation: Game[]
+  onFeature: (game: Game) => void
   onEdit: (game: Game) => void
 }
 
-export function FeaturedBanner({ game, onEdit }: FeaturedBannerProps): React.JSX.Element {
+export function FeaturedBanner({
+  game,
+  rotation,
+  onFeature,
+  onEdit
+}: FeaturedBannerProps): React.JSX.Element {
   const cover = coverUrl(game)
+  const logo = logoUrl(game)
+  const { runningIds } = useLauncher()
+  const running = runningIds.has(game.id)
+  const [paused, setPaused] = useState(false)
+  // Logo lỗi (file bị xoá...) => hiện tên game dạng chữ
+  const [failedLogo, setFailedLogo] = useState<string | null>(null)
+  const showLogo = !!logo && failedLogo !== logo
+
+  const canRotate = rotation.length > 1
+  const index = rotation.findIndex((g) => g.id === game.id)
+
+  // Tự chuyển sang game tiếp theo, dừng khi rê chuột vào banner
+  useEffect(() => {
+    if (!canRotate || paused) return
+    const timer = setTimeout(() => {
+      onFeature(rotation[(index + 1) % rotation.length])
+    }, ROTATE_MS)
+    return () => clearTimeout(timer)
+  }, [canRotate, paused, index, rotation, onFeature])
+
+  const badge = running
+    ? 'Đang chơi'
+    : game.last_played
+      ? 'Tiếp tục chơi'
+      : game.is_favorite === 1
+        ? 'Yêu thích'
+        : 'Nổi bật'
 
   return (
-    <section className="featured" style={{ background: gameGradient(game.title) }}>
+    <section
+      className={`featured ${paused ? 'paused' : ''}`}
+      style={{ background: gameGradient(game.title) }}
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+    >
       {cover ? (
-        <img className="featured-cover" src={cover} alt="" draggable={false} />
+        // key => ảnh mới mờ dần lên mỗi khi đổi game
+        <img key={cover} className="featured-cover" src={cover} alt="" draggable={false} />
       ) : (
         <>
           <GameIconArt
@@ -26,29 +80,73 @@ export function FeaturedBanner({ game, onEdit }: FeaturedBannerProps): React.JSX
         </>
       )}
 
-      <div className="featured-content">
+      <div className="featured-content" key={game.id}>
         <span className="featured-badge">
-          {game.is_favorite === 1 && <StarIcon width={12} height={12} />}
-          Nổi bật
+          {running && <span className="pulse-dot" />}
+          {!running && game.is_favorite === 1 && <StarIcon width={12} height={12} />}
+          {badge}
         </span>
-        <h2 className="featured-title">{game.title}</h2>
+
+        {showLogo ? (
+          <img
+            className="featured-logo"
+            src={logo}
+            alt={game.title}
+            draggable={false}
+            onError={() => setFailedLogo(logo)}
+          />
+        ) : (
+          <h2 className="featured-title">{game.title}</h2>
+        )}
+
         <div className="featured-meta">
           {game.source === 'steam' && <span className="tag">Steam</span>}
           {game.genre && <span className="tag">{game.genre}</span>}
           <span>
             <ClockIcon width={14} height={14} /> {formatPlaytime(game.total_playtime)}
           </span>
-          {game.last_played && (
-            <span>Lần cuối: {new Date(game.last_played).toLocaleDateString('vi-VN')}</span>
-          )}
+          {game.last_played && <span>Chơi lần cuối {formatRelative(game.last_played)}</span>}
         </div>
         <div className="featured-actions">
-          <PlayButton game={game} />
+          <PlayButton game={game} label={game.last_played ? 'Tiếp tục chơi' : 'Chơi ngay'} />
           <button className="btn btn-glass" onClick={() => onEdit(game)}>
             <PencilIcon width={16} height={16} /> Sửa
           </button>
         </div>
       </div>
+
+      {canRotate && (
+        <div className="featured-thumbs">
+          {rotation.map((g) => {
+            const thumb = coverUrl(g)
+            const active = g.id === game.id
+            return (
+              <button
+                key={g.id}
+                className={`featured-thumb ${active ? 'active' : ''}`}
+                title={g.title}
+                style={{ background: gameGradient(g.title) }}
+                onClick={() => onFeature(g)}
+              >
+                {thumb ? (
+                  <img src={thumb} alt="" draggable={false} />
+                ) : (
+                  <span>{gameInitials(g.title)}</span>
+                )}
+                {/* Thanh chạy cho biết còn bao lâu thì chuyển game; rê chuột vào banner thì
+                    ẩn, rời chuột thì chạy lại từ đầu cùng với bộ hẹn giờ */}
+                {active && !paused && (
+                  <span
+                    key={game.id}
+                    className="featured-progress"
+                    style={{ animationDuration: `${ROTATE_MS}ms` }}
+                  />
+                )}
+              </button>
+            )
+          })}
+        </div>
+      )}
     </section>
   )
 }

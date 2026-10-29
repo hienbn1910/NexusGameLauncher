@@ -27,7 +27,8 @@ function App(): React.JSX.Element {
   const [search, setSearch] = useState('')
   const [featuredId, setFeaturedId] = useState<string | null>(null)
   const [form, setForm] = useState<FormState>(null)
-  const [runningIds, setRunningIds] = useState<Set<string>>(new Set())
+  const [runningIds, setRunningIds] = useState<Map<string, number>>(new Map())
+  const [stats, setStats] = useState<PlayStats | null>(null)
   const [launchingId, setLaunchingId] = useState<string | null>(null)
   const [toast, setToast] = useState<ToastMessage | null>(null)
 
@@ -41,19 +42,24 @@ function App(): React.JSX.Element {
       setFeaturedId((recent ?? list[0])?.id ?? null)
     })
     // Lấy lại danh sách game đang chạy (vd sau khi reload cửa sổ)
-    window.electronAPI.games.getRunning().then((ids) => setRunningIds(new Set(ids)))
+    window.electronAPI.games
+      .getRunning()
+      .then((list) => setRunningIds(new Map(list.map((s) => [s.gameId, s.startedAt]))))
+    window.electronAPI.games.getStats().then(setStats)
   }, [])
 
   // Nhận sự kiện game bắt đầu/thoát từ main process
   useEffect(() => {
-    return window.electronAPI.games.onSessionChanged(({ gameId, running, game }) => {
+    return window.electronAPI.games.onSessionChanged(({ gameId, running, game, startedAt }) => {
       setRunningIds((prev) => {
-        const next = new Set(prev)
-        if (running) next.add(gameId)
+        const next = new Map(prev)
+        if (running) next.set(gameId, startedAt ?? Date.now())
         else next.delete(gameId)
         return next
       })
       if (game) setGames((prev) => prev.map((g) => (g.id === game.id ? game : g)))
+      // Phiên chơi vừa kết thúc => cập nhật thống kê
+      if (!running) window.electronAPI.games.getStats().then(setStats)
     })
   }, [])
 
@@ -87,16 +93,14 @@ function App(): React.JSX.Element {
 
   const featured = games.find((g) => g.id === featuredId) ?? null
 
-  const shuffleFeatured = useCallback(() => {
-    if (games.length === 0) return
-    const others = games.filter((g) => g.id !== featuredId)
-    const pool = others.length > 0 ? others : games
-    setFeaturedId(pool[Math.floor(Math.random() * pool.length)].id)
-  }, [games, featuredId])
+  // Đổi game trên banner (tự xoay vòng / bấm ảnh nhỏ) mà không đổi trang
+  const featureGame = useCallback((game: Game) => setFeaturedId(game.id), [])
 
   const selectGame = (game: Game): void => {
     setFeaturedId(game.id)
     setPage('home')
+    // Cuộn lên đầu để thấy banner của game vừa chọn
+    document.querySelector('.content')?.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   // Gõ tìm kiếm ở topbar thì chuyển sang Kho game để xem kết quả
@@ -165,7 +169,9 @@ function App(): React.JSX.Element {
               <HomePage
                 games={games}
                 featured={featured}
-                onShuffle={shuffleFeatured}
+                stats={stats}
+                onFeature={featureGame}
+                onOpenSettings={() => setPage('settings')}
                 onSelectGame={selectGame}
                 onAddGame={openAddForm}
                 onEditGame={setForm}

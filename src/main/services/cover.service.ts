@@ -6,6 +6,7 @@ import { app, nativeImage, net, protocol } from 'electron'
 import { getGameIcon } from './exe-icon.service'
 import * as gameService from './game.service'
 import type { Game } from './game.service'
+import { newsImageResponse } from './news-image.service'
 
 export const MEDIA_SCHEME = 'game-media'
 export const COVER_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp', 'bmp']
@@ -47,6 +48,7 @@ export function registerMediaProtocol(): void {
     const name = decodeURIComponent(url.pathname.replace(/^\//, ''))
 
     if (url.host === 'icon' && /^[\w-]+$/.test(name)) return exeIcon(name)
+    if (url.host === 'news-image') return newsImageResponse(name)
     if (url.host === 'cover' && SAFE_FILE_NAME.test(name)) {
       return net.fetch(pathToFileURL(join(coversDir(), name)).toString())
     }
@@ -79,8 +81,15 @@ async function removeCoverFile(coverPath: string | null): Promise<void> {
   }
 }
 
-// cover: ảnh ngang (thẻ game, banner), poster: ảnh dọc 2:3 (lưới kiểu Steam)
-export type CoverKind = 'cover' | 'poster'
+// cover: ảnh ngang (thẻ game, banner), poster: ảnh dọc 2:3 (lưới kiểu Steam),
+// logo: logo nền trong suốt (banner trang chủ)
+export type CoverKind = 'cover' | 'poster' | 'logo'
+
+const COVER_COLUMN: Record<CoverKind, gameService.ImageColumn> = {
+  cover: 'cover_path',
+  poster: 'poster_path',
+  logo: 'logo_path'
+}
 
 // Copy ảnh người dùng chọn vào thư mục covers (không trỏ tới file gốc vì có thể bị xoá/di chuyển)
 export async function setCover(
@@ -105,8 +114,14 @@ export async function setCover(
         image.getSize().width > MAX_COVER_WIDTH
           ? image.resize({ width: MAX_COVER_WIDTH, quality: 'best' })
           : image
-      newPath = join(coversDir(), `${gameId}-${stamp}.jpg`)
-      await writeFile(newPath, resized.toJPEG(88))
+      // Logo cần giữ nền trong suốt => PNG, còn lại JPEG cho nhẹ
+      if (kind === 'logo') {
+        newPath = join(coversDir(), `${gameId}-${stamp}.png`)
+        await writeFile(newPath, resized.toPNG())
+      } else {
+        newPath = join(coversDir(), `${gameId}-${stamp}.jpg`)
+        await writeFile(newPath, resized.toJPEG(88))
+      }
     } else if (ext === 'webp') {
       newPath = join(coversDir(), `${gameId}-${stamp}.webp`)
       await copyFile(imagePath, newPath)
@@ -115,12 +130,55 @@ export async function setCover(
     }
   }
 
-  const column = kind === 'poster' ? 'poster_path' : 'cover_path'
+  const column = COVER_COLUMN[kind]
   await removeCoverFile(game[column])
+  colorCache.delete(gameId)
   return gameService.updateCoverPath(gameId, newPath, column)
 }
 
 export async function deleteCover(game: Game): Promise<void> {
   await removeCoverFile(game.cover_path)
   await removeCoverFile(game.poster_path)
+  await removeCoverFile(game.logo_path)
+}
+
+// ---------- Màu chủ đạo của ảnh game (tô nền trang chủ) ----------
+
+const colorCache = new Map<string, string | null>()
+
+// Màu "rực" nhất trung bình của ảnh: thu nhỏ ảnh rồi lấy trung bình các điểm ảnh
+// có độ bão hoà cao, bỏ qua vùng quá tối/quá sáng. Trả về "r, g, b" hoặc null.
+export function getArtColor(gameId: string): string | null {
+  if (colorCache.has(gameId)) return colorCache.get(gameId)!
+  const game = gameService.getGameById(gameId)
+  const file = game?.cover_path ?? game?.poster_path
+  let color: string | null = null
+
+  if (file && SAFE_FILE_NAME.test(basename(file))) {
+    const image = nativeImage.createFromPath(join(coversDir(), basename(file)))
+    if (!image.isEmpty()) {
+      const small = image.resize({ width: 32, height: 32, quality: 'good' })
+      const bmp = small.toBitmap() // BGRA
+      let r = 0
+      let g = 0
+      let b = 0
+      let weight = 0
+      for (let i = 0; i < bmp.length; i += 4) {
+        const [pb, pg, pr] = [bmp[i], bmp[i + 1], bmp[i + 2]]
+        const max = Math.max(pr, pg, pb)
+        const min = Math.min(pr, pg, pb)
+        if (max < 40 || min > 225) continue
+        const w = (max - min) / 255 + 0.05 // Ưu tiên điểm ảnh nhiều màu
+        r += pr * w
+        g += pg * w
+        b += pb * w
+        weight += w
+      }
+      if (weight > 0) {
+        color = [r, g, b].map((v) => Math.round(v / weight)).join(', ')
+      }
+    }
+  }
+  colorCache.set(gameId, color)
+  return color
 }

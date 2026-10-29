@@ -2,7 +2,8 @@ import { execFile } from 'child_process'
 import { existsSync } from 'fs'
 import { readdir, readFile, rm, writeFile } from 'fs/promises'
 import { basename, dirname, join } from 'path'
-import { app, BrowserWindow, net } from 'electron'
+import { app, BrowserWindow } from 'electron'
+import { fetchWithTimeout } from './network.service'
 import { setCover, type CoverKind } from './cover.service'
 import * as gameService from './game.service'
 import type { Game } from './game.service'
@@ -17,27 +18,22 @@ const CDN = 'https://cdn.cloudflare.steamstatic.com/steam/apps'
 const ALLOWED_HOST = /(^|\.)steamstatic\.com$/i
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024
 // Đổi khi sửa cách tìm để các game đã tìm trước đó được tìm lại
-const LOOKUP_VERSION = 'v1'
+const LOOKUP_VERSION = 'v2'
 
 // File ảnh Steam cho từng ô, theo thứ tự ưu tiên
-// poster: ảnh dọc thư viện; cover: ảnh nền lớn (hợp banner) => capsule => header
+// poster: ảnh dọc thư viện; cover: ảnh nền lớn (hợp banner) => capsule => header;
+// logo: logo nền trong suốt
 const ART_FILES: Record<CoverKind, string[]> = {
   poster: ['library_600x900.jpg'],
-  cover: ['library_hero.jpg', 'capsule_616x353.jpg', 'header.jpg']
+  cover: ['library_hero.jpg', 'capsule_616x353.jpg', 'header.jpg'],
+  logo: ['logo.png']
 }
 
 const isSteamUri = (value: string): boolean => /^steam:\/\//i.test(value.trim())
 
-// Lỗi mạng => không đánh dấu đã tìm, lần mở app sau sẽ thử lại
-class NetworkError extends Error {}
-
-async function fetchOrThrow(url: string): Promise<Response> {
-  try {
-    return await net.fetch(url)
-  } catch {
-    throw new NetworkError(`Không kết nối được: ${url}`)
-  }
-}
+// Lỗi mạng (NetworkError) => không đánh dấu đã tìm, lần mở app sau sẽ thử lại.
+// Có giới hạn thời gian để không treo lâu khi Steam bị chặn.
+const fetchOrThrow = (url: string): Promise<Response> => fetchWithTimeout(url, {}, 10_000)
 
 // ---------- Tìm Steam App ID ----------
 
@@ -265,7 +261,9 @@ async function downloadArt(url: string): Promise<string | null> {
   const buffer = Buffer.from(await res.arrayBuffer())
   if (buffer.length === 0 || buffer.length > MAX_IMAGE_BYTES) return null
 
-  const path = join(tempDir(), `game-launcher-steam-${Date.now()}.jpg`)
+  // Giữ đúng định dạng (logo là PNG nền trong suốt)
+  const ext = res.headers.get('content-type')?.includes('png') ? 'png' : 'jpg'
+  const path = join(tempDir(), `game-launcher-steam-${Date.now()}.${ext}`)
   await writeFile(path, buffer)
   return path
 }
@@ -286,9 +284,10 @@ async function assetBaseFromDetails(appId: string): Promise<string | null> {
 
 // ---------- Tự lấy ảnh ----------
 
-const COLUMN: Record<CoverKind, 'cover_path' | 'poster_path'> = {
+const COLUMN: Record<CoverKind, gameService.ImageColumn> = {
   cover: 'cover_path',
-  poster: 'poster_path'
+  poster: 'poster_path',
+  logo: 'logo_path'
 }
 
 // Lấy ảnh cho một ô (poster/cover); trả về true nếu đã đặt ảnh
@@ -349,7 +348,6 @@ const inFlight = new Set<string>()
 export async function autoFetchArt(gameId: string): Promise<void> {
   const game = gameService.getGameById(gameId)
   if (!game || inFlight.has(gameId)) return
-  if (game.cover_path && game.poster_path) return
   const key = lookupKey(game)
   if (game.art_lookup === key) return
 
@@ -363,15 +361,18 @@ export async function autoFetchArt(gameId: string): Promise<void> {
       const getAssetBase = (): Promise<string | null> =>
         (assetBase ??= assetBaseFromDetails(appId).catch(() => null))
 
-      for (const kind of ['poster', 'cover'] as CoverKind[]) {
+      for (const kind of ['poster', 'cover', 'logo'] as CoverKind[]) {
         if (game[COLUMN[kind]]) continue
         if (await fillSlot(gameId, appId, kind, getAssetBase)) changed = true
       }
     }
 
-    gameService.setArtLookup(gameId, key)
+    // Lưu cả App ID để lấy tin tức game
+    gameService.setArtLookup(gameId, key, appId)
     const updated = gameService.getGameById(gameId)
-    if (changed && updated) broadcastUpdated(updated)
+    if (updated && (changed || updated.steam_app_id !== game.steam_app_id)) {
+      broadcastUpdated(updated)
+    }
   } catch {
     // Lỗi mạng: để lần sau thử lại
   } finally {

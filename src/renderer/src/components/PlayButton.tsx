@@ -3,10 +3,11 @@ import { PlayIcon } from './Icons'
 
 interface PlayButtonProps {
   game: Game
+  label?: string
 }
 
 // Nút "Chơi ngay" lớn trên banner, tự đổi trạng thái khi game đang khởi động/đang chạy
-export function PlayButton({ game }: PlayButtonProps): React.JSX.Element {
+export function PlayButton({ game, label = 'Chơi ngay' }: PlayButtonProps): React.JSX.Element {
   const { runningIds, launchingId, launch } = useLauncher()
   const running = runningIds.has(game.id)
   const launching = launchingId === game.id
@@ -22,7 +23,7 @@ export function PlayButton({ game }: PlayButtonProps): React.JSX.Element {
   return (
     <button className="btn btn-primary" disabled={launching} onClick={() => launch(game)}>
       <PlayIcon width={16} height={16} />
-      {launching ? 'Đang mở...' : 'Chơi ngay'}
+      {launching ? 'Đang mở...' : label}
     </button>
   )
 }

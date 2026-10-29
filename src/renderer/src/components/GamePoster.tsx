@@ -9,6 +9,10 @@ interface GamePosterProps {
   onSelect: (game: Game) => void
   onEdit: (game: Game) => void
   onToggleFavorite: (game: Game) => void
+  // Dòng chữ nhỏ dưới ảnh (vd "3 ngày trước") - dùng trên các kệ ở trang chủ
+  caption?: string
+  // Nhãn nhỏ góc dưới ảnh (vd "Có cập nhật")
+  badge?: string
 }
 
 // Ô ảnh bìa dọc 2:3 kiểu thư viện Steam.
@@ -18,7 +22,9 @@ export function GamePoster({
   game,
   onSelect,
   onEdit,
-  onToggleFavorite
+  onToggleFavorite,
+  caption,
+  badge
 }: GamePosterProps): React.JSX.Element {
   const { runningIds, launchingId, launch } = useLauncher()
   const running = runningIds.has(game.id)
@@ -63,6 +69,7 @@ export function GamePoster({
             <span className="pulse-dot" /> Đang chạy
           </span>
         )}
+        {badge && !running && <span className="poster-badge">{badge}</span>}
 
         <div className="poster-actions">
           <button
@@ -101,6 +108,12 @@ export function GamePoster({
           </button>
         )}
       </div>
+      {caption && (
+        <div className="poster-caption">
+          <span className="poster-caption-title">{game.title}</span>
+          <span className="poster-caption-sub">{caption}</span>
+        </div>
+      )}
     </div>
   )
 }

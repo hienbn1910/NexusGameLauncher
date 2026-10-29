@@ -9,6 +9,9 @@ import { initDatabase } from './database'
 import { registerMediaProtocol, registerMediaScheme } from './services/cover.service'
 import { autoFetchAllArt } from './services/steam-art.service'
 import { cleanupTempDownloads } from './services/steamgriddb.service'
+import { registerNewsHandlers } from './ipc/news.ipc'
+import { applyNetworkSettings } from './services/network.service'
+import { cleanupNewsImages } from './services/news-image.service'
 
 const APP_NAME = 'Nexus Launcher'
 
@@ -63,14 +66,18 @@ function createWindow(): void {
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   // Set app user model id for windows
   initDatabase()
   runMigrations()
   registerGameHandlers()
   registerMediaProtocol()
   registerSteamGridDbHandlers()
+  registerNewsHandlers()
   void cleanupTempDownloads()
+  void cleanupNewsImages()
+  // DNS bảo mật / proxy người dùng đã chọn (lỗi thì vẫn mở app với mạng mặc định)
+  await applyNetworkSettings().catch(() => undefined)
   // Windows nhóm cửa sổ trên taskbar và hiển thị thông báo theo ID này
   electronApp.setAppUserModelId('com.nexus.launcher')
 

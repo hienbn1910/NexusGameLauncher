@@ -12,7 +12,11 @@ export interface SessionEvent {
   gameId: string
   running: boolean
   game?: Game
+  startedAt?: number // Thời điểm bắt đầu phiên (ms), có khi running = true
 }
+
+// Phiên ngắn hơn mức này (mở nhầm, game lỗi) không ghi vào lịch sử
+const MIN_SESSION_MS = 60_000
 
 const POLL_INTERVAL_MS = 5_000
 // Số lần kiểm tra liên tiếp không thấy tiến trình nào thì coi như đã tắt game
@@ -33,6 +37,7 @@ interface Session {
   active: boolean // Lần kiểm tra gần nhất game có đang chạy không
   lastTick: number
   playedMs: number
+  startedAt: number
 }
 
 // Các game đang được theo dõi (key = game id)
@@ -46,6 +51,10 @@ export function isSteamUri(path: string): boolean {
 
 export function getRunningGameIds(): string[] {
   return [...sessions.keys()]
+}
+
+export function getRunningSessions(): { gameId: string; startedAt: number }[] {
+  return [...sessions].map(([gameId, s]) => ({ gameId, startedAt: s.startedAt }))
 }
 
 // Gửi trạng thái chơi game tới tất cả cửa sổ renderer
@@ -64,7 +73,11 @@ function endSession(gameId: string): void {
   // Cộng nốt khoảng thời gian từ lần kiểm tra cuối nếu game vẫn đang chạy
   if (session.active) session.playedMs += Date.now() - session.lastTick
 
-  const game = gameService.recordPlaySession(gameId, session.playedMs / 3_600_000)
+  const hours = session.playedMs / 3_600_000
+  if (session.playedMs >= MIN_SESSION_MS) {
+    gameService.addPlaySession(gameId, new Date(session.startedAt), new Date(), hours)
+  }
+  const game = gameService.recordPlaySession(gameId, hours)
   broadcast({ gameId, running: false, game })
 }
 
@@ -129,7 +142,8 @@ function startSession(
     missCount: 0,
     active: mode === 'auto', // Auto: launcher vừa bật nên tính là đang chạy
     lastTick: now,
-    playedMs: 0
+    playedMs: 0,
+    startedAt: now
   }
   sessions.set(gameId, session)
 
@@ -248,7 +262,10 @@ export async function launchGame(id: string): Promise<LaunchResult> {
     // Steam / shortcut không chỉ định tiến trình: không theo dõi được, chỉ ghi lần chơi cuối
 
     const updated = gameService.recordPlaySession(id, 0)!
-    if (sessions.has(id)) broadcast({ gameId: id, running: true, game: updated })
+    const session = sessions.get(id)
+    if (session) {
+      broadcast({ gameId: id, running: true, game: updated, startedAt: session.startedAt })
+    }
     return { ok: true, game: updated }
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : 'Không thể mở game' }
