@@ -117,6 +117,13 @@ export function formatPlaytime(hours: number): string {
   return `${rounded.toFixed(1).replace(/\.0$/, '')} giờ`
 }
 
+// Tách số và đơn vị để hiển thị số to: "13 giờ trước" => ["13", "giờ trước"].
+// Không bắt đầu bằng số ("Chưa chơi", "Hôm qua") => [null, nguyên chuỗi]
+export function splitValue(text: string): [string | null, string] {
+  const match = /^([<>]?\s?[\d.,]+)\s+(.*)$/.exec(text)
+  return match ? [match[1], match[2]] : [null, text]
+}
+
 // Nhãn trạng thái game đang mở: launcher mới mở (chưa đếm giờ) / game thật đang chạy
 export function runningLabel(info: RunningInfo | undefined): string | null {
   if (!info) return null

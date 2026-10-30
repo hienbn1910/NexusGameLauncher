@@ -9,12 +9,30 @@
   --text-2: #9aa3b5;
   --text-3: #636b7d;
   --accent: #8b5cf6;
-  --accent-soft: rgba(139, 92, 246, 0.15);
+  --accent-2: #a855f7; /* Màu nhấn phụ (đầu cuối gradient) */
+  --accent-soft: rgb(from var(--accent) r g b / 0.15);
   --success: #34d399;
+  --danger: #ef4444;
+  --favorite: #facc15;
   --open: #fbbf24; /* "Đang mở": launcher đã mở, chưa vào game */
   --radius: 10px;
   --sidebar-width: 248px;
   --statusbar-height: 28px;
+
+  /* Token theme: mỗi theme (themes.css) ghi đè các giá trị này */
+  --font-body: 'Chakra Petch', 'Segoe UI', sans-serif;
+  --font-display: var(--font-body); /* Tên game lớn, tiêu đề */
+  --font-mono: 'JetBrains Mono Variable', Consolas, monospace; /* Đường dẫn, nhãn nhỏ */
+  --font-num: var(--font-display); /* Số liệu (Orbitron không có dấu tiếng Việt) */
+  --label-font: var(--font-body); /* Nhãn nhỏ viết hoa (THỜI GIAN CHƠI...) */
+  --label-spacing: 0.08em;
+  --title-transform: none; /* Tên game lớn: viết hoa hay không */
+  --title-style: normal; /* italic ở theme Neon */
+  --play-clip: none; /* Hình dạng nút chính (góc vát bằng clip-path) */
+  --btn-primary-bg: var(--accent);
+  --btn-primary-fg: #fff;
+  --btn-primary-glow: 0 6px 20px rgb(from var(--accent) r g b / 0.4);
+  --panel-bg: rgb(from var(--bg-2) r g b / 0.75);
 }
 
 *,
@@ -33,7 +51,7 @@ body,
 body {
   background: var(--bg-0);
   color: var(--text-1);
-  font-family: 'Roboto Variable', Roboto, 'Segoe UI', sans-serif;
+  font-family: var(--font-body);
   font-size: 14px;
   overflow: hidden;
   user-select: none;
@@ -113,6 +131,7 @@ ul {
   padding: 8px;
   border-radius: var(--radius);
   background: var(--bg-2);
+  border: 1px solid transparent;
   text-align: left;
   transition: background 0.15s;
 }
@@ -272,9 +291,10 @@ ul {
   justify-content: space-between;
   align-items: center;
   padding: 0 4px;
+  font-family: var(--label-font);
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: var(--label-spacing);
   text-transform: uppercase;
   color: var(--text-3);
 }
@@ -505,8 +525,10 @@ ul {
   opacity: 0.55;
   transform: scale(1.5);
 }
+/* Bo góc icon như icon ứng dụng (mọi theme, kể cả Tối giản) */
 .icon-art-image {
   position: relative;
+  border-radius: 18%;
   filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.5));
 }
 /* Icon phóng to phủ kín khung, làm mờ làm nền (tràn ra ngoài để giấu viền mờ) */
@@ -577,6 +599,9 @@ ul {
 }
 
 .featured-title {
+  font-family: var(--font-display);
+  font-style: var(--title-style);
+  text-transform: var(--title-transform);
   font-size: 36px;
   font-weight: 800;
   line-height: 1.1;
@@ -626,9 +651,24 @@ ul {
   transform: none;
 }
 .btn-primary {
-  color: #fff;
-  background: var(--accent);
-  box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4);
+  clip-path: var(--play-clip);
+  color: var(--btn-primary-fg);
+  background: var(--btn-primary-bg);
+  box-shadow: var(--btn-primary-glow);
+}
+/* Nhãn 2 dòng: "Tiếp tục chơi" + "Phiên trước · 13 giờ trước" */
+.btn-label {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.15;
+}
+.btn-hint {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  opacity: 0.8;
 }
 .btn-sm {
   padding: 8px 16px;
@@ -642,9 +682,11 @@ ul {
   opacity: 1;
   cursor: default;
 }
+/* Viền trong suốt giữ sẵn chỗ: theme chỉ đổi màu viền, kích thước nút không đổi */
 .btn-glass {
   color: #fff;
   background: rgba(255, 255, 255, 0.14);
+  border: 1px solid transparent;
   backdrop-filter: blur(8px);
 }
 .btn-danger {
@@ -663,6 +705,7 @@ ul {
   padding: 8px 14px;
   border-radius: 8px;
   background: var(--bg-3);
+  border: 1px solid transparent;
 }
 .btn-ghost {
   color: var(--text-2);
@@ -673,10 +716,18 @@ ul {
 }
 
 .tag {
-  padding: 2px 8px;
+  padding: 3px 10px;
   border-radius: 6px;
   font-size: 11px;
   background: rgba(255, 255, 255, 0.1);
+}
+.tag-genre {
+  color: #e9d5ff;
+  background: rgb(from var(--accent-2) r g b / 0.25);
+}
+.tag-success {
+  color: #86efac;
+  background: rgb(from var(--success) r g b / 0.15);
 }
 
 .tab-bar {
@@ -1891,6 +1942,105 @@ select.input option {
   color: var(--text-2);
 }
 
+/* ---------- Dữ liệu & xoá dữ liệu ---------- */
+
+.data-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.data-settings-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.data-settings-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.danger-zone {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  background: rgba(239, 68, 68, 0.06);
+}
+.danger-zone > div {
+  flex: 1;
+  min-width: 0;
+}
+.danger-zone strong {
+  color: #f87171;
+}
+.danger-zone p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--text-2);
+}
+.btn-danger-outline {
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.5);
+  border-radius: 8px;
+}
+.btn-danger-outline:hover {
+  color: #fff;
+  background: #dc2626;
+  border-color: #dc2626;
+}
+
+.modal.reset-modal {
+  max-width: 520px;
+}
+.reset-warning {
+  padding: 12px 14px;
+  border-radius: 10px;
+  line-height: 1.5;
+  color: #fecaca;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+}
+.reset-warning strong {
+  color: #f87171;
+}
+.reset-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding-left: 4px;
+  font-size: 13px;
+  color: var(--text-2);
+}
+.reset-list li::before {
+  content: '✕';
+  margin-right: 8px;
+  font-size: 11px;
+  color: #f87171;
+}
+.reset-word {
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-weight: 700;
+  color: #f87171;
+  background: rgba(239, 68, 68, 0.12);
+}
+.reset-modal .form-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.reset-modal .btn-danger:disabled {
+  opacity: 0.4;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
 .tracking-settings {
   display: flex;
   flex-direction: column;
@@ -2391,7 +2541,7 @@ select.input option {
   padding: 14px 16px;
   border-radius: 12px;
   text-align: left;
-  background: rgba(26, 30, 39, 0.75);
+  background: var(--panel-bg);
   border: 1px solid var(--border);
   backdrop-filter: blur(10px);
 }
@@ -2407,9 +2557,10 @@ select.input option {
 }
 
 .stat-label {
+  font-family: var(--label-font);
   font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--label-spacing);
   text-transform: uppercase;
   color: var(--text-3);
 }
@@ -2449,7 +2600,7 @@ select.input option {
   gap: 10px;
   padding: 14px 16px 10px;
   border-radius: 12px;
-  background: rgba(26, 30, 39, 0.75);
+  background: var(--panel-bg);
   border: 1px solid var(--border);
   backdrop-filter: blur(10px);
 }
@@ -3176,10 +3327,12 @@ select.input option {
   margin-left: 45%;
 }
 
+/* Chừa góc 20px cho khung trang trí của theme (vd ngoặc vuông ở Neon) */
 .detail-back {
   position: absolute;
-  top: 16px;
-  left: 16px;
+  z-index: 2;
+  top: 20px;
+  left: 24px;
 }
 
 .detail-hero-content {
@@ -3198,8 +3351,8 @@ select.input option {
 }
 /* Nút phụ cạnh nút Chơi: cao bằng nút Chơi cho cân đối */
 .detail-icon-btn {
-  width: 50px;
-  height: 42px;
+  width: 52px;
+  height: 48px;
   padding: 0;
   justify-content: center;
   font-size: 20px;
@@ -3208,8 +3361,9 @@ select.input option {
   width: 19px;
   height: 19px;
 }
+/* Mọi theme cùng chiều cao (nút Chơi có 2 dòng: nhãn + "Phiên trước...") */
 .detail-actions .btn {
-  min-height: 42px;
+  height: 48px;
 }
 .detail-icon-btn.favorite {
   color: #facc15;
@@ -3227,6 +3381,86 @@ select.input option {
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   color: var(--success);
+}
+
+.detail .featured-title {
+  font-size: 48px;
+  line-height: 1.1;
+}
+
+.detail-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.detail-tags .tag {
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+/* Hàng 4 ô chỉ số dưới banner */
+.detail-stat-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.detail-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+}
+.detail-stat-value {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  min-width: 0;
+  font-size: 17px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.detail-stat-value .num {
+  font-family: var(--font-num);
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1;
+}
+.detail-stat-value small {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+.detail-stat-sub {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 12px;
+  color: var(--text-3);
+}
+.detail-stat-status {
+  align-items: center;
+  gap: 8px;
+}
+.status-square {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  background: var(--text-3);
+}
+.status-square.ok {
+  background: var(--success);
+}
+
+@media (max-width: 1000px) {
+  .detail-stat-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 /* ---------- Tab ---------- */
@@ -3293,7 +3527,7 @@ select.input option {
   gap: 12px;
   padding: 18px 20px;
   border-radius: 12px;
-  background: rgba(26, 30, 39, 0.75);
+  background: var(--panel-bg);
   border: 1px solid var(--border);
   backdrop-filter: blur(10px);
 }
@@ -3301,6 +3535,7 @@ select.input option {
 .detail-section-title {
   font-size: 15px;
   font-weight: 700;
+  line-height: 20px; /* Cố định: theme đổi font/cỡ chữ tiêu đề mà khối không đổi chiều cao */
 }
 .detail-section-title {
   margin-bottom: 12px;
@@ -3345,9 +3580,10 @@ select.input option {
   min-width: 0;
 }
 .info-label {
+  font-family: var(--label-font);
   font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.05em;
+  letter-spacing: var(--label-spacing);
   text-transform: uppercase;
   color: var(--text-3);
 }
@@ -3360,7 +3596,8 @@ select.input option {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-  font-size: 13px;
+  font-family: var(--font-mono);
+  font-size: 12px;
   color: var(--text-2);
   direction: rtl; /* Cắt phần đầu đường dẫn, giữ phần cuối (tên file) */
   text-align: left;

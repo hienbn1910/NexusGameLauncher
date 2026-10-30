@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { GameFormModal } from './components/GameFormModal'
 import { ProfileModal } from './components/ProfileModal'
 import { WatchDirSuggestionCard } from './components/WatchDirSuggestionCard'
@@ -16,7 +16,7 @@ import { withViewTransition } from './utils/viewTransition'
 const PAGE_TITLES: Record<PageKey, string> = {
   home: 'Trang chủ',
   catalogue: 'Kho game',
-  downloads: 'Tải xuống',
+  shop: 'Cửa hàng',
   settings: 'Cài đặt',
   game: 'Chi tiết game'
 }
@@ -53,11 +53,6 @@ function App(): React.JSX.Element {
   useEffect(() => {
     window.electronAPI.games.getAll().then((list) => {
       setGames(list)
-      // Mặc định: game chơi gần nhất, nếu chưa có thì game đầu tiên
-      const recent = [...list]
-        .filter((g) => g.last_played)
-        .sort((a, b) => (b.last_played ?? '').localeCompare(a.last_played ?? ''))[0]
-      setFeaturedId((recent ?? list[0])?.id ?? null)
     })
     // Lấy lại danh sách game đang chạy (vd sau khi reload cửa sổ)
     window.electronAPI.games
@@ -134,7 +129,16 @@ function App(): React.JSX.Element {
     }
   }
 
-  const featured = games.find((g) => g.id === featuredId) ?? null
+  // Chưa chọn game nổi bật (thư viện trống lúc mở app rồi mới thêm game, game đã bị xoá...)
+  // => game chơi gần nhất, chưa chơi game nào thì game đầu tiên
+  const featured = useMemo(() => {
+    const picked = games.find((g) => g.id === featuredId)
+    if (picked) return picked
+    const recent = games
+      .filter((g) => g.last_played)
+      .sort((a, b) => (b.last_played ?? '').localeCompare(a.last_played ?? ''))[0]
+    return recent ?? games[0] ?? null
+  }, [games, featuredId])
 
   // Đổi game trên banner (tự xoay vòng / bấm ảnh nhỏ) mà không đổi trang
   const featureGame = useCallback((game: Game) => setFeaturedId(game.id), [])
@@ -222,7 +226,7 @@ function App(): React.JSX.Element {
   const handleDeleted = (id: string): void => {
     const remaining = games.filter((g) => g.id !== id)
     setGames(remaining)
-    if (featuredId === id) setFeaturedId(remaining[0]?.id ?? null)
+    if (featuredId === id) setFeaturedId(null) // Tự lấy game mặc định khác
     // Đang xem trang của game vừa xoá => quay lại trang trước
     if (page === 'game' && detailId === id) setPage(backPage === 'game' ? 'home' : backPage)
     setForm(null)
@@ -312,10 +316,10 @@ function App(): React.JSX.Element {
             {page === 'settings' && (
               <SettingsPage profile={profile} onEditProfile={() => setEditingProfile(true)} />
             )}
-            {page === 'downloads' && (
+            {page === 'shop' && (
               <div className="empty-state">
                 <h2>{PAGE_TITLES[page]}</h2>
-                <p>Trang này đang được phát triển.</p>
+                <p>Hiện tại vẫn đang phát triển. Hãy chờ đợi bản cập nhật tiếp theo!</p>
               </div>
             )}
           </div>

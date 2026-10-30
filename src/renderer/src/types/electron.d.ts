@@ -226,6 +226,20 @@ declare global {
     nativeProcessApi: boolean // Đang dùng API Windows (false = tasklist, chậm hơn)
   }
 
+  // Giao diện: Tối giản (mặc định), Cân bằng (miễn phí), Neon (cần mở khoá)
+  type ThemeId = 'minimal' | 'balanced' | 'neon'
+  interface Appearance {
+    theme: ThemeId
+    unlocked: ThemeId[] // Các theme dùng được
+  }
+
+  // Dữ liệu người dùng của app (%APPDATA%\game-launcher)
+  interface DataInfo {
+    path: string
+    bytes: number
+    files: number
+  }
+
   interface ElectronAPI {
     games: {
       getAll: () => Promise<Game[]>
@@ -282,6 +296,15 @@ declare global {
       skipOnboarding: () => Promise<UserProfile>
       pickAvatar: () => Promise<{ path: string; preview: string } | null>
       previewAvatar: (imagePath: string) => Promise<{ path: string; preview: string } | null>
+    }
+    app: {
+      getDataInfo: () => Promise<DataInfo>
+      openDataFolder: () => Promise<ApiResult<void>>
+      // Xoá toàn bộ dữ liệu, về như mới cài (giao diện tự tải lại sau đó)
+      resetData: () => Promise<ApiResult<void>>
+      getAppearance: () => Promise<Appearance>
+      // Lỗi nếu theme chưa mở khoá
+      setTheme: (theme: ThemeId) => Promise<ApiResult<Appearance>>
     }
     network: {
       getSettings: () => Promise<NetworkSettings>

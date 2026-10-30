@@ -1,11 +1,15 @@
 import { ApiKeyForm } from '../components/ApiKeyForm'
+import { AppearanceSettingsCard } from '../components/AppearanceSettingsCard'
 import { Avatar } from '../components/Avatar'
+import { DataSettingsCard } from '../components/DataSettingsCard'
 import { TrackingSettingsCard } from '../components/TrackingSettingsCard'
 import {
   ClockIcon,
+  FolderIcon,
   GlobeIcon,
   ImageIcon,
   LayersIcon,
+  PaletteIcon,
   PencilIcon,
   UserIcon,
   type IconComponent
@@ -73,6 +77,14 @@ export function SettingsPage({ profile, onEditProfile }: SettingsPageProps): Rea
       </SettingsCard>
 
       <SettingsCard
+        icon={PaletteIcon}
+        title="Giao diện"
+        description="Đổi phong cách hiển thị của app. Một số giao diện cần mở khoá."
+      >
+        <AppearanceSettingsCard />
+      </SettingsCard>
+
+      <SettingsCard
         icon={ClockIcon}
         title="Theo dõi giờ chơi"
         description="Tính giờ theo thư mục game: mọi exe trong thư mục cài game đều được tính là đang chơi."
@@ -102,6 +114,14 @@ export function SettingsPage({ profile, onEditProfile }: SettingsPageProps): Rea
         description="Dùng để tìm ảnh bìa online trong form thêm/sửa game."
       >
         <ApiKeyForm />
+      </SettingsCard>
+
+      <SettingsCard
+        icon={FolderIcon}
+        title="Dữ liệu"
+        description="Thư viện game, giờ chơi, ảnh bìa và cài đặt của Nexus được lưu trên máy này."
+      >
+        <DataSettingsCard />
       </SettingsCard>
     </div>
   )

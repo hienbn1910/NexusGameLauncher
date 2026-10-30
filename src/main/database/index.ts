@@ -10,6 +10,11 @@ export function initDatabase(): void {
   db.pragma('journal_mode = WAL')
 }
 
+// Đóng database (trước khi xoá file khi reset dữ liệu)
+export function closeDatabase(): void {
+  if (db?.open) db.close()
+}
+
 export function getDb(): Database.Database {
   return db
 }

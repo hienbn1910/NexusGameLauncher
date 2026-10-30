@@ -1,0 +1,652 @@
+/* ================= Giao diện (theme) =================
+   Theme đặt bằng data-theme trên <html>. Mỗi theme gồm:
+   1. Token (biến CSS): màu, font, hình dạng nút...
+   2. Ghi đè riêng cho những gì token không diễn tả được (góc vát, viền neon...)
+   Selector token dùng [data-theme] (không dùng :root) để bản xem trước trong Cài đặt
+   lồng data-theme khác vẫn tự vẽ đúng màu của nó. */
+
+/* Góc vát dùng chung */
+:root {
+  --cut-tr: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
+  --cut-br: polygon(0 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%);
+  --cut-tl-br: polygon(
+    12px 0,
+    100% 0,
+    100% calc(100% - 12px),
+    calc(100% - 12px) 100%,
+    0 100%,
+    0 12px
+  );
+  --hexagon: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+}
+
+/* ---------- Token: Tối giản (mặc định) ---------- */
+
+[data-theme='minimal'] {
+  --bg-0: #0a0a0b;
+  --bg-1: #0d0d0f;
+  --bg-2: #151517;
+  --bg-3: #1e1e21;
+  --border: #242428;
+  --text-1: #ededee;
+  --text-2: #9b9ba3;
+  --text-3: #5f5f68;
+  --accent: #22d3ee;
+  --accent-2: #22d3ee;
+  --success: #22c55e;
+  --favorite: #fbbf24;
+  --font-display: 'Chakra Petch', 'Segoe UI', sans-serif;
+  --label-font: var(--font-mono);
+  --label-spacing: 0.14em;
+  --title-transform: uppercase;
+  --btn-primary-bg: #22d3ee;
+  --btn-primary-fg: #05070d;
+  --btn-primary-glow: none;
+  --play-clip: var(--cut-tr);
+  --panel-bg: transparent;
+}
+
+/* ---------- Token: Cân bằng ---------- */
+
+[data-theme='balanced'] {
+  --bg-0: #0b0e17;
+  --bg-1: #0d111c;
+  --bg-2: #131827;
+  --bg-3: #1b2133;
+  --border: #20273a;
+  --text-1: #e6e9f5;
+  --text-2: #8a93b5;
+  --text-3: #5b6380;
+  --accent: #a855f7;
+  --accent-2: #22d3ee;
+  --success: #22c55e;
+  --favorite: #fbbf24;
+  --font-display: 'Chakra Petch', 'Segoe UI', sans-serif;
+  --label-spacing: 0.12em;
+  --btn-primary-bg: linear-gradient(90deg, #22d3ee, #a855f7);
+  --btn-primary-fg: #05070d;
+  --btn-primary-glow: none;
+  --play-clip: var(--cut-br);
+  --panel-bg: #10141f;
+}
+
+/* ---------- Token: Neon (bản nâng cấp của Cân bằng) ---------- */
+
+[data-theme='neon'] {
+  --bg-0: #05070d;
+  --bg-1: #070a13;
+  --bg-2: #0b0f1c;
+  --bg-3: #131a30;
+  --border: #1a2240;
+  --text-1: #e6e9f5;
+  --text-2: #8a93b5;
+  --text-3: #59627f;
+  --accent: #22d3ee;
+  --accent-2: #a855f7;
+  --success: #22c55e;
+  --favorite: #fbbf24;
+  --font-display: 'Exo 2 Variable', 'Chakra Petch', sans-serif;
+  --font-num: 'Orbitron Variable', var(--font-body);
+  --label-spacing: 0.16em;
+  --title-transform: uppercase;
+  --title-style: italic;
+  --btn-primary-bg: linear-gradient(90deg, #22d3ee, #a855f7);
+  --btn-primary-fg: #05070d;
+  --btn-primary-glow: none;
+  --play-clip: var(--cut-tl-br);
+  --panel-bg: rgb(11 15 28 / 0.85);
+}
+
+/* ================= Chung cho các theme mới ================= */
+
+/* Thanh trạng thái dùng font mono như bản thiết kế */
+.statusbar {
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.btn-primary {
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* ================= Quy tắc chung =================
+   Theme chỉ đổi "da" (màu, font, viền, góc, bóng, hiệu ứng), KHÔNG đổi "khung":
+   không ẩn/hiện thành phần, không đổi kích thước, padding, khoảng cách hay vị trí.
+   Viền: dùng border-color (main.css đã giữ sẵn viền 1px trong suốt), không thêm border mới. */
+
+/* Bo góc theo theme. Trừ những thứ luôn tròn (chấm trạng thái, avatar...) và icon game
+   (icon luôn bo góc như icon ứng dụng) */
+[data-theme='minimal']
+  *:not(
+    .status-dot,
+    .pulse-dot,
+    .open-dot,
+    .featured-glow,
+    .icon-art-glow,
+    .icon-art-image,
+    .library-thumb,
+    .theme-preview,
+    .theme-preview *
+  ) {
+  border-radius: 0 !important;
+}
+[data-theme='balanced'],
+[data-theme='neon'] {
+  --theme-radius: 4px;
+}
+[data-theme='neon'] {
+  --theme-radius: 2px;
+}
+:is([data-theme='balanced'], [data-theme='neon'])
+  *:not(
+    .avatar,
+    .status-dot,
+    .pulse-dot,
+    .open-dot,
+    .game-card-play,
+    .filter-clear-input,
+    .confirm-icon,
+    .profile-avatar-drop,
+    .profile-avatar-overlay,
+    .follow-chip button,
+    .detail-tab-dot,
+    .lightbox-close,
+    .lightbox-nav,
+    .featured-glow,
+    .icon-art-glow,
+    .icon-art-image,
+    .library-thumb,
+    .theme-preview,
+    .theme-preview *
+  ) {
+  border-radius: var(--theme-radius) !important;
+}
+
+/* ================= Tối giản: phẳng, ít màu, viền mảnh ================= */
+
+[data-theme='minimal'] .home-ambient {
+  opacity: 0.35;
+}
+[data-theme='minimal'] .home .featured,
+[data-theme='minimal'] .detail-hero {
+  box-shadow: none;
+}
+
+[data-theme='minimal'] .sidebar-profile {
+  background: transparent;
+  border-color: var(--border);
+}
+[data-theme='minimal'] .sidebar-profile:hover {
+  background: var(--bg-2);
+}
+[data-theme='minimal'] .nav-item.active {
+  background: var(--bg-2);
+}
+/* Vạch đánh dấu chuyển sang mép phải (vị trí tuyệt đối, không ảnh hưởng bố cục) */
+[data-theme='minimal'] .nav-item.active::before {
+  left: auto;
+  right: 10px;
+  top: 12px;
+  bottom: 12px;
+}
+[data-theme='minimal'] .library-count {
+  background: transparent;
+  color: var(--text-2);
+}
+[data-theme='minimal'] .library-add {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+/* Nút: nền trong suốt, viền mảnh */
+[data-theme='minimal'] .btn-glass,
+[data-theme='minimal'] .btn-secondary {
+  background: rgb(10 10 11 / 0.55);
+  border-color: rgb(255 255 255 / 0.14);
+  backdrop-filter: none;
+}
+[data-theme='minimal'] .btn-glass:hover,
+[data-theme='minimal'] .btn-secondary:hover {
+  border-color: rgb(255 255 255 / 0.35);
+  filter: none;
+}
+[data-theme='minimal'] .btn:hover {
+  transform: none;
+}
+
+/* Banner chi tiết: ảnh nền tối hơn, không khung màu */
+[data-theme='minimal'] .detail-hero {
+  background: var(--bg-2) !important;
+}
+[data-theme='minimal'] .detail-hero-media {
+  opacity: 0.55;
+}
+[data-theme='minimal'] .detail-tags .tag {
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-weight: 500;
+  background: rgb(10 10 11 / 0.75);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.12);
+}
+[data-theme='minimal'] .detail .featured-title {
+  text-shadow: none;
+}
+
+/* Khối: không nền, chỉ viền mảnh; tiêu đề khối dạng nhãn mono */
+[data-theme='minimal'] .detail-stat,
+[data-theme='minimal'] .detail-card,
+[data-theme='minimal'] .settings-card {
+  background: transparent;
+  backdrop-filter: none;
+}
+[data-theme='minimal'] .detail-card h3 {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+[data-theme='minimal'] .settings-card-icon {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+[data-theme='minimal'] .game-card:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+/* ================= Cân bằng: góc vát nhẹ, gradient cyan → tím ================= */
+
+[data-theme='balanced'] .sidebar-profile .avatar,
+[data-theme='neon'] .sidebar-profile .avatar {
+  clip-path: var(--hexagon);
+}
+[data-theme='balanced'] .sidebar-profile {
+  border-color: var(--border);
+}
+[data-theme='balanced'] .nav-item.active {
+  background: rgb(from var(--accent-2) r g b / 0.07);
+}
+
+[data-theme='balanced'] .detail-hero,
+[data-theme='balanced'] .home .featured {
+  box-shadow: none;
+  outline: 1px solid var(--border);
+  outline-offset: -1px;
+}
+[data-theme='balanced'] .detail .featured-title {
+  font-weight: 600;
+  text-shadow: none;
+}
+[data-theme='balanced'] .detail-tags .tag {
+  color: var(--text-1);
+  background: rgb(from var(--bg-3) r g b / 0.92);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+[data-theme='balanced'] .detail-tags .tag-genre {
+  color: #f3e8ff;
+  background: rgb(76 29 149 / 0.92);
+  box-shadow: inset 0 0 0 1px rgb(from var(--accent) r g b / 0.6);
+}
+[data-theme='balanced'] .detail-tags .tag-success {
+  color: #bbf7d0;
+  background: rgb(20 83 45 / 0.92);
+}
+[data-theme='balanced'] .btn-glass {
+  background: rgb(from var(--bg-2) r g b / 0.8);
+  border-color: var(--border);
+}
+[data-theme='balanced'] .detail-card h3 {
+  font-weight: 600;
+}
+
+/* ================= Neon: viền phát sáng, góc vát, nền lưới ================= */
+
+/* Nền lưới mờ kiểu màn hình HUD */
+[data-theme='neon'] .main {
+  background:
+    linear-gradient(rgb(34 211 238 / 0.025) 1px, transparent 1px) 0 0 / 40px 40px,
+    linear-gradient(90deg, rgb(34 211 238 / 0.025) 1px, transparent 1px) 0 0 / 40px 40px,
+    var(--bg-1);
+}
+
+/* Hồ sơ: viền gradient cyan → tím (dùng viền 1px có sẵn), avatar lục giác */
+[data-theme='neon'] .sidebar-profile {
+  background:
+    linear-gradient(var(--bg-2), var(--bg-2)) padding-box,
+    linear-gradient(135deg, rgb(34 211 238 / 0.6), rgb(168 85 247 / 0.6)) border-box;
+  clip-path: var(--cut-br);
+}
+[data-theme='neon'] .sidebar-profile .avatar {
+  background: linear-gradient(135deg, #22d3ee, #a855f7);
+}
+
+[data-theme='neon'] .nav-item.active {
+  background: linear-gradient(90deg, rgb(168 85 247 / 0.28), rgb(168 85 247 / 0.04));
+}
+/* Thay vạch trái bằng hình thoi phát sáng bên phải (vị trí tuyệt đối) */
+[data-theme='neon'] .nav-item.active::before {
+  left: auto;
+  right: 14px;
+  top: 50%;
+  bottom: auto;
+  width: 6px;
+  height: 6px;
+  transform: translateY(-50%) rotate(45deg);
+  box-shadow: 0 0 8px var(--accent);
+}
+[data-theme='neon'] .library-header {
+  color: var(--text-2);
+}
+[data-theme='neon'] .library-count {
+  background: transparent;
+  color: var(--accent);
+}
+[data-theme='neon'] .library-add {
+  box-shadow: inset 0 0 0 1px rgb(34 211 238 / 0.4);
+  color: var(--accent);
+}
+[data-theme='neon'] .library-item.active {
+  background: linear-gradient(90deg, rgb(34 211 238 / 0.12), transparent);
+}
+
+/* Nút: vát góc, viền mảnh tím */
+[data-theme='neon'] .btn-glass,
+[data-theme='neon'] .btn-secondary {
+  background: rgb(11 15 28 / 0.75);
+  border-color: rgb(168 85 247 / 0.35);
+  clip-path: var(--cut-br);
+}
+[data-theme='neon'] .btn-glass:hover,
+[data-theme='neon'] .btn-secondary:hover {
+  border-color: var(--accent);
+  filter: none;
+}
+[data-theme='neon'] .detail-icon-btn.favorite {
+  border-color: rgb(251 191 36 / 0.7);
+}
+
+/* Banner: viền neon + 2 góc ngoặc vuông (vẽ đè, không chiếm chỗ) */
+[data-theme='neon'] .detail-hero,
+[data-theme='neon'] .home .featured {
+  box-shadow: none;
+  outline: 1px solid rgb(34 211 238 / 0.45);
+  outline-offset: -1px;
+  clip-path: var(--cut-br);
+}
+[data-theme='neon'] .detail-hero::before {
+  content: '';
+  position: absolute;
+  inset: 8px;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    linear-gradient(var(--accent), var(--accent)) top left / 24px 2px no-repeat,
+    linear-gradient(var(--accent), var(--accent)) top left / 2px 24px no-repeat,
+    linear-gradient(var(--accent-2), var(--accent-2)) bottom right / 24px 2px no-repeat,
+    linear-gradient(var(--accent-2), var(--accent-2)) bottom right / 2px 24px no-repeat;
+}
+[data-theme='neon'] .detail .featured-title {
+  font-weight: 800;
+  text-shadow:
+    0 0 18px rgb(168 85 247 / 0.55),
+    0 2px 20px rgba(0, 0, 0, 0.5);
+}
+
+/* Nhãn hình bình hành, nền gần đặc để đọc được trên mọi ảnh banner */
+[data-theme='neon'] .tag {
+  clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%);
+}
+[data-theme='neon'] .detail-tags .tag {
+  letter-spacing: 0.12em;
+  color: #c3c9e0;
+  background: rgb(14 18 33 / 0.9);
+}
+[data-theme='neon'] .detail-tags .tag-genre {
+  color: #f3e8ff;
+  background: rgb(91 33 182 / 0.9);
+}
+[data-theme='neon'] .detail-tags .tag-success {
+  color: #bbf7d0;
+  background: rgb(20 83 45 / 0.9);
+}
+
+/* Ô chỉ số: số Orbitron, ô đầu màu cyan phát sáng */
+[data-theme='neon'] .detail-stat-value .num {
+  font-weight: 800;
+}
+[data-theme='neon'] .detail-stat:first-child .num {
+  color: var(--accent);
+  text-shadow: 0 0 14px rgb(34 211 238 / 0.45);
+}
+
+/* Tab viết hoa, tab đang mở có nền + vạch cyan phát sáng */
+[data-theme='neon'] .detail-tab {
+  text-transform: uppercase;
+}
+[data-theme='neon'] .detail-tab.active {
+  background: linear-gradient(0deg, rgb(34 211 238 / 0.1), transparent);
+}
+[data-theme='neon'] .detail-tab.active::after {
+  box-shadow: 0 0 10px var(--accent);
+}
+
+/* Khối nội dung: vát góc dưới phải, có đường chéo viền */
+[data-theme='neon'] .detail-card,
+[data-theme='neon'] .settings-card {
+  position: relative;
+  background: var(--panel-bg);
+  clip-path: var(--cut-br);
+}
+[data-theme='neon'] .detail-card::after,
+[data-theme='neon'] .settings-card::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 10px;
+  height: 10px;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom right,
+    transparent calc(50% - 1px),
+    var(--border) calc(50% - 1px) calc(50% + 0.5px),
+    transparent calc(50% + 0.5px)
+  );
+}
+/* Tiêu đề khối viết hoa có hình thoi đầu dòng (cột trái cyan, cột phải tím) */
+[data-theme='neon'] .detail-card h3 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+[data-theme='neon'] .detail-card h3::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  transform: rotate(45deg);
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+}
+[data-theme='neon'] .detail-side .detail-card h3::before {
+  background: var(--accent-2);
+  box-shadow: 0 0 8px var(--accent-2);
+}
+[data-theme='neon'] .settings-card-icon {
+  color: var(--accent);
+  background: rgb(34 211 238 / 0.08);
+  box-shadow: inset 0 0 0 1px rgb(34 211 238 / 0.3);
+}
+
+/* Thẻ game: rê chuột nổi lên, viền neon */
+[data-theme='neon'] .game-card:hover {
+  transform: translateY(-6px);
+  border-color: var(--accent);
+  box-shadow:
+    0 0 0 1px rgb(34 211 238 / 0.5),
+    0 10px 30px rgb(34 211 238 / 0.18);
+}
+[data-theme='neon'] .search-box:focus-within,
+[data-theme='neon'] .input:focus,
+[data-theme='neon'] .library-filter:focus {
+  box-shadow: 0 0 0 1px rgb(34 211 238 / 0.25);
+}
+
+/* ================= Chọn giao diện (Cài đặt) ================= */
+
+.theme-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.theme-option {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+  text-align: left;
+  border: 1px solid var(--border);
+  background: var(--bg-1);
+  transition:
+    border-color 0.15s,
+    transform 0.15s;
+}
+.theme-option:not(:disabled):hover {
+  border-color: var(--text-3);
+}
+.theme-option.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.theme-option.locked {
+  cursor: not-allowed;
+}
+.theme-option.locked .theme-preview {
+  filter: grayscale(0.6) brightness(0.6);
+}
+.theme-option-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.theme-option-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+}
+.theme-option-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 7px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.theme-option-badge.locked {
+  color: var(--text-2);
+  background: var(--bg-3);
+}
+.theme-option-desc {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-3);
+}
+
+/* Bản xem trước thu nhỏ: chỉ dùng token nên tự lấy màu của theme lồng bên trong */
+.theme-preview {
+  display: grid;
+  grid-template-columns: 26% 1fr;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  font-family: var(--font-body);
+}
+.theme-preview-side {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 8px 6px;
+  background: var(--bg-0);
+  border-right: 1px solid var(--border);
+}
+.theme-preview-side i {
+  height: 5px;
+  background: var(--bg-3);
+}
+.theme-preview-side i:first-child {
+  background: var(--accent);
+  width: 70%;
+}
+.theme-preview-main {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+}
+.theme-preview-hero {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 5px;
+  padding: 6px;
+  background: linear-gradient(135deg, rgb(from var(--accent-2) r g b / 0.25), var(--bg-2));
+  border: 1px solid var(--border);
+}
+.theme-preview-hero b {
+  font-family: var(--font-display);
+  font-style: var(--title-style);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--text-1);
+}
+.theme-preview-play {
+  width: 46%;
+  height: 9px;
+  background: var(--btn-primary-bg);
+  clip-path: var(--play-clip);
+}
+.theme-preview-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+}
+.theme-preview-tiles i {
+  height: 12px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+}
+
+/* Bản xem trước theo từng theme */
+.theme-preview[data-theme='minimal'] .theme-preview-hero {
+  background: none;
+  border: none;
+  padding: 6px 0;
+}
+.theme-preview[data-theme='minimal'] .theme-preview-tiles {
+  gap: 0;
+}
+.theme-preview[data-theme='neon'] .theme-preview-hero {
+  border-color: rgb(34 211 238 / 0.6);
+  box-shadow: inset 0 0 12px rgb(168 85 247 / 0.25);
+}
+.theme-preview[data-theme='neon'] .theme-preview-hero b {
+  text-shadow: 0 0 8px rgb(168 85 247 / 0.8);
+}
+.theme-preview[data-theme='balanced'] .theme-preview-hero,
+.theme-preview[data-theme='balanced'] .theme-preview-tiles i {
+  border-radius: 3px;
+}

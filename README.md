@@ -47,7 +47,8 @@
 ### Khác
 - Hồ sơ người dùng: tên và ảnh đại diện (chữ cái đầu, avatar có sẵn hoặc ảnh tải lên).
 - Cài đặt mạng: DNS bảo mật (Cloudflare / Google) và proxy riêng cho app, để dùng khi Steam bị chặn.
-- Giao diện tiếng Việt, font Roboto đóng gói kèm app nên dùng được cả khi offline.
+- Nhiều giao diện: **Tối giản** (mặc định), **Cân bằng** và **Neon** (cần mở khoá), đổi trong Cài đặt.
+- Giao diện tiếng Việt; font Chakra Petch, Exo 2, JetBrains Mono và Orbitron đóng gói kèm app nên dùng được cả khi offline.
 
 ## Yêu cầu
 

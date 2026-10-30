@@ -19,7 +19,8 @@ import {
   formatRelative,
   gameGradient,
   gameInitials,
-  logoUrl
+  logoUrl,
+  splitValue
 } from '../utils/gameArt'
 
 type DetailTab = 'overview' | 'stats' | 'news' | 'media' | 'notes'
@@ -42,6 +43,34 @@ interface GameDetailPageProps {
   onToggleFavorite: (game: Game) => void
   onGameUpdated: (game: Game) => void
   onNotify: (type: 'error' | 'info', text: string) => void
+}
+
+// Ô chỉ số dưới banner: số to + đơn vị nhỏ ("13" "giờ trước")
+function StatBlock({
+  label,
+  value,
+  sub
+}: {
+  label: string
+  value: string
+  sub?: string
+}): React.JSX.Element {
+  const [num, unit] = splitValue(value)
+  return (
+    <div className="detail-stat">
+      <span className="stat-label">{label}</span>
+      <span className="detail-stat-value">
+        {num ? (
+          <>
+            <span className="num">{num}</span> <small>{unit}</small>
+          </>
+        ) : (
+          unit
+        )}
+      </span>
+      {sub && <span className="detail-stat-sub">{sub}</span>}
+    </div>
+  )
 }
 
 // Đồng hồ phiên chơi đang chạy cạnh nút Chơi
@@ -151,6 +180,12 @@ export function GameDetailPage({
         </button>
 
         <div className="detail-hero-content" key={game.id}>
+          <div className="detail-tags">
+            {game.genre && <span className="tag tag-genre">{game.genre}</span>}
+            {install?.path && <span className="tag tag-success">✓ Đã cài đặt</span>}
+            <span className="tag">{game.source === 'steam' ? 'Steam' : 'Tự thêm'}</span>
+          </div>
+
           {logo && failedLogo !== logo ? (
             <img
               className="featured-logo"
@@ -164,7 +199,13 @@ export function GameDetailPage({
           )}
 
           <div className="detail-actions">
-            <PlayButton game={game} label={game.last_played ? 'Tiếp tục chơi' : 'Chơi ngay'} />
+            <PlayButton
+              game={game}
+              label={game.last_played ? 'Tiếp tục chơi' : 'Chơi ngay'}
+              hint={
+                game.last_played ? `Phiên trước · ${formatRelative(game.last_played)}` : undefined
+              }
+            />
             {startedAt !== undefined && <SessionClock startedAt={startedAt} />}
             <button
               className={`btn btn-glass detail-icon-btn ${isFavorite ? 'favorite' : ''}`}
@@ -199,15 +240,36 @@ export function GameDetailPage({
               ⋯
             </button>
           </div>
-
-          <div className="featured-meta">
-            <span>{formatPlaytime(game.total_playtime)}</span>
-            {game.last_played && <span>Chơi lần cuối {formatRelative(game.last_played)}</span>}
-            {game.source === 'steam' && <span className="tag">Steam</span>}
-            {game.genre && <span className="tag">{game.genre}</span>}
-          </div>
         </div>
       </section>
+
+      <div className="detail-stat-row">
+        <StatBlock label="Thời gian chơi" value={formatPlaytime(game.total_playtime)} />
+        <StatBlock
+          label="Lần chơi cuối"
+          value={formatRelative(game.last_played)}
+          sub={game.process_name ? `Tiến trình: ${game.process_name}` : undefined}
+        />
+        <StatBlock
+          label="Thêm vào thư viện"
+          value={formatRelative(game.created_at)}
+          sub={`Nguồn: ${game.source === 'steam' ? 'Steam' : 'Tự thêm'}`}
+        />
+        <div className="detail-stat">
+          <span className="stat-label">Trạng thái</span>
+          <span className="detail-stat-value detail-stat-status">
+            <span className={`status-square ${install?.path ? 'ok' : ''}`} />
+            {install === undefined
+              ? 'Đang kiểm tra...'
+              : install.path
+                ? 'Đã cài đặt'
+                : game.source === 'steam'
+                  ? 'Qua Steam'
+                  : 'Không tìm thấy'}
+          </span>
+          {game.genre && <span className="detail-stat-sub">{game.genre}</span>}
+        </div>
+      </div>
 
       <div className="detail-tabs" role="tablist">
         {TABS.map((t) => (

@@ -3,7 +3,6 @@ import { useLauncher } from '../hooks/useLauncher'
 import { ContextMenu, type MenuItem } from './ContextMenu'
 import { GameThumb } from './GameThumb'
 import {
-  DownloadIcon,
   FolderIcon,
   GearIcon,
   GridIcon,
@@ -13,6 +12,7 @@ import {
   PlayIcon,
   PlusIcon,
   StarIcon,
+  StoreIcon,
   TrashIcon,
   type IconComponent
 } from './Icons'
@@ -22,12 +22,12 @@ import { DEFAULT_PROFILE_NAME } from '../utils/avatar'
 import { runningLabel } from '../utils/gameArt'
 
 // 'game' = trang chi tiết game (không có trong menu điều hướng)
-export type PageKey = 'home' | 'catalogue' | 'downloads' | 'settings' | 'game'
+export type PageKey = 'home' | 'catalogue' | 'shop' | 'settings' | 'game'
 
 const NAV_ITEMS: { key: PageKey; label: string; icon: IconComponent }[] = [
   { key: 'home', label: 'Trang chủ', icon: HomeIcon },
   { key: 'catalogue', label: 'Kho game', icon: GridIcon },
-  { key: 'downloads', label: 'Tải xuống', icon: DownloadIcon },
+  { key: 'shop', label: 'Cửa hàng', icon: StoreIcon },
   { key: 'settings', label: 'Cài đặt', icon: GearIcon }
 ]
 

@@ -11,6 +11,7 @@ import { autoFetchAllArt } from './services/steam-art.service'
 import { cleanupTempDownloads } from './services/steamgriddb.service'
 import { registerNewsHandlers } from './ipc/news.ipc'
 import { registerProfileHandlers } from './ipc/profile.ipc'
+import { registerAppHandlers } from './ipc/app.ipc'
 import { startTracker } from './services/play-tracker.service'
 import { applyNetworkSettings } from './services/network.service'
 import { cleanupNewsImages } from './services/news-image.service'
@@ -31,7 +32,7 @@ function createWindow(): void {
     height: 760,
     minWidth: 960,
     minHeight: 600,
-    backgroundColor: '#0d0f14',
+    backgroundColor: '#08090c', // Gần với nền của mọi theme, tránh nháy trắng khi mở
     show: false,
     title: APP_NAME,
     autoHideMenuBar: true,
@@ -77,6 +78,7 @@ app.whenReady().then(async () => {
   registerSteamGridDbHandlers()
   registerNewsHandlers()
   registerProfileHandlers()
+  registerAppHandlers()
   startTracker() // Theo dõi giờ chơi + tự nhận game mở ngoài Nexus
   void cleanupTempDownloads()
   void cleanupNewsImages()

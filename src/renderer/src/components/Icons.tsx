@@ -75,6 +75,16 @@ export const DownloadIcon = (p: IconProps): React.JSX.Element => (
   </Base>
 )
 
+// Cửa hàng: mặt tiền có mái hiên lượn sóng + cửa ra vào
+export const StoreIcon = (p: IconProps): React.JSX.Element => (
+  <Base {...p}>
+    <path d="M4.5 4h15L21 9H3l1.5-5Z" />
+    <path d="M3 9a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0" />
+    <path d="M5 11.5V20h14v-8.5" />
+    <path d="M10 20v-5h4v5" />
+  </Base>
+)
+
 export const GearIcon = (p: IconProps): React.JSX.Element => (
   <Base {...p}>
     <circle cx="12" cy="12" r="3" />
@@ -189,6 +199,23 @@ export const ImageIcon = (p: IconProps): React.JSX.Element => (
     <rect x="3" y="4" width="18" height="16" rx="2" />
     <circle cx="9" cy="10" r="2" />
     <path d="m21 16-5-5-9 9" />
+  </Base>
+)
+
+// Bảng màu: dùng cho cài đặt giao diện
+export const PaletteIcon = (p: IconProps): React.JSX.Element => (
+  <Base {...p}>
+    <path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.8-.9 1.8-1.9 0-.5-.2-.9-.5-1.3-.3-.3-.5-.8-.5-1.3 0-1 .8-1.8 1.8-1.8H17a4 4 0 0 0 4-4C21 6.5 17 3 12 3Z" />
+    <circle cx="7.5" cy="11" r="1.2" fill="currentColor" />
+    <circle cx="10.5" cy="7" r="1.2" fill="currentColor" />
+    <circle cx="15.5" cy="7.5" r="1.2" fill="currentColor" />
+  </Base>
+)
+
+export const LockIcon = (p: IconProps): React.JSX.Element => (
+  <Base {...p}>
+    <rect x="5" y="11" width="14" height="10" rx="2" />
+    <path d="M8 11V7a4 4 0 0 1 8 0v4" />
   </Base>
 )
 

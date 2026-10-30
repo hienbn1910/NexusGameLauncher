@@ -72,6 +72,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     pickAvatar: () => ipcRenderer.invoke('profile:pickAvatar'),
     previewAvatar: (imagePath: string) => ipcRenderer.invoke('profile:previewAvatar', imagePath)
   },
+  app: {
+    getDataInfo: () => ipcRenderer.invoke('app:getDataInfo'),
+    openDataFolder: () => ipcRenderer.invoke('app:openDataFolder'),
+    resetData: () => ipcRenderer.invoke('app:resetData'),
+    getAppearance: () => ipcRenderer.invoke('app:getAppearance'),
+    setTheme: (theme: string) => ipcRenderer.invoke('app:setTheme', theme)
+  },
   network: {
     getSettings: () => ipcRenderer.invoke('network:getSettings'),
     saveSettings: (settings: unknown) => ipcRenderer.invoke('network:saveSettings', settings),

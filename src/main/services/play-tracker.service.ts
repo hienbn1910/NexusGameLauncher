@@ -559,6 +559,13 @@ function schedule(delay?: number): void {
   if (wait !== null) timer = setTimeout(() => void poll(), wait)
 }
 
+// Reset dữ liệu: bỏ mọi phiên đang theo dõi mà không ghi gì (database sắp bị xoá)
+export function resetTracker(): void {
+  sessions.clear()
+  invalidateTargets()
+  schedule()
+}
+
 export function startTracker(): void {
   started = true
   schedule(3_000) // Đợi app mở xong rồi mới dò game đang chạy sẵn
