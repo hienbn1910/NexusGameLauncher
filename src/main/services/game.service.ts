@@ -21,18 +21,47 @@ export interface Game {
   art_lookup: string | null
   notes: string | null
   watch_dirs: string | null // Thư mục theo dõi giờ chơi, mỗi dòng một thư mục
+  launch_args: string | null // Tham số khi chạy exe (JSON mảng chuỗi)
+  catalog_id: string | null // Mã trong danh mục game phổ biến
+  game_exe: string | null // Exe game thật (lấy icon), khác exe_path khi exe_path là launcher
+  sgdb_id: number | null // Mã game trên SteamGridDB (chọn từ gợi ý tên game)
   created_at: string
   updated_at: string
 }
 
-// Kiểu dữ liệu khi thêm game mới (chỉ cần title và exe_path)
+// Kiểu dữ liệu khi thêm game mới (chỉ cần title và exe_path).
+// exe_path = '' => game chưa liên kết (thêm từ danh mục nhưng chưa tìm thấy trên máy)
 export interface CreateGameInput {
   title: string
   exe_path: string
   genre?: string
   process_name?: string
   watch_dirs?: string[]
+  launch_args?: string[]
+  catalog_id?: string
+  steam_app_id?: string
+  game_exe?: string
+  sgdb_id?: number | null // null = bỏ liên kết (vd đổi tên game mà không chọn gợi ý)
 }
+
+const toSgdbId = (value: unknown): number | null =>
+  typeof value === 'number' && Number.isInteger(value) && value > 0 ? value : null
+
+// Game chưa có file chạy (chưa liên kết)
+export const isLinked = (game: Pick<Game, 'exe_path'>): boolean => game.exe_path.trim() !== ''
+
+// Tham số chạy đã lưu => mảng chuỗi (dữ liệu hỏng => không có tham số)
+export function parseLaunchArgs(value: string | null): string[] {
+  try {
+    const list: unknown = JSON.parse(value ?? '[]')
+    return Array.isArray(list) ? list.filter((a): a is string => typeof a === 'string') : []
+  } catch {
+    return []
+  }
+}
+
+const packArgs = (args: string[] | undefined): string | null =>
+  args && args.length > 0 ? JSON.stringify(args) : null
 
 // Danh sách thư mục => chuỗi lưu DB (bỏ trùng, bỏ dòng trống; rỗng => null = tự động)
 function packDirs(dirs: unknown): string | null {
@@ -87,8 +116,9 @@ export function createGame(input: CreateGameInput): Game {
   const db = getDb()
   const stmt = db.prepare(`
     INSERT INTO games
-      (id, title, exe_path, source, source_id, genre, process_name, watch_dirs, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (id, title, exe_path, source, source_id, genre, process_name, watch_dirs,
+       launch_args, catalog_id, steam_app_id, game_exe, sgdb_id, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `)
 
   stmt.run(
@@ -100,6 +130,11 @@ export function createGame(input: CreateGameInput): Game {
     input.genre || null,
     input.process_name?.trim() || null,
     packDirs(input.watch_dirs),
+    packArgs(input.launch_args),
+    input.catalog_id ?? null,
+    input.steam_app_id ?? null,
+    input.game_exe ?? null,
+    toSgdbId(input.sgdb_id),
     now,
     now
   )
@@ -116,10 +151,17 @@ export function updateGame(id: string, input: UpdateGameInput): Game | undefined
   const now = new Date().toISOString()
   const exePath = input.exe_path ?? existing.exe_path
   const { source, source_id } = sourceFromPath(exePath)
+  // Tham số chạy gắn với file chạy cũ: đổi file chạy (người dùng tự chọn) thì bỏ tham số
+  const launchArgs =
+    input.launch_args !== undefined
+      ? packArgs(input.launch_args)
+      : exePath === existing.exe_path
+        ? existing.launch_args
+        : null
   const stmt = db.prepare(`
     UPDATE games
     SET title = ?, exe_path = ?, source = ?, source_id = ?, genre = ?, process_name = ?,
-        watch_dirs = ?, is_favorite = ?, updated_at = ?
+        watch_dirs = ?, launch_args = ?, sgdb_id = ?, is_favorite = ?, updated_at = ?
     WHERE id = ?
   `)
 
@@ -131,11 +173,19 @@ export function updateGame(id: string, input: UpdateGameInput): Game | undefined
     input.genre !== undefined ? input.genre || null : existing.genre,
     input.process_name !== undefined ? input.process_name.trim() || null : existing.process_name,
     input.watch_dirs !== undefined ? packDirs(input.watch_dirs) : existing.watch_dirs,
+    launchArgs,
+    input.sgdb_id !== undefined ? toSgdbId(input.sgdb_id) : existing.sgdb_id,
     input.is_favorite !== undefined ? Number(input.is_favorite) : existing.is_favorite,
     now,
     id
   )
 
+  return getGameById(id)
+}
+
+// Exe game thật (để lấy icon); không đổi updated_at vì người dùng không sửa gì
+export function setGameExe(id: string, exePath: string | null): Game | undefined {
+  getDb().prepare('UPDATE games SET game_exe = ? WHERE id = ?').run(exePath, id)
   return getGameById(id)
 }
 

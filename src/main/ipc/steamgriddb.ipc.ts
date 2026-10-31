@@ -24,6 +24,10 @@ export function registerSteamGridDbHandlers(): void {
     wrap(() => sgdb.getGameBySteamAppId(appId))
   )
 
+  ipcMain.handle('sgdb:getSteamAppId', (_e, gameId: number) =>
+    wrap(() => sgdb.getSteamAppId(Number(gameId)))
+  )
+
   ipcMain.handle('sgdb:getImages', (_e, gameId: number, kind: sgdb.ImageKind, page: number) =>
     wrap(() => sgdb.getImages(gameId, kind, page))
   )

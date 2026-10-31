@@ -1,4 +1,5 @@
 import { BrowserWindow, dialog, ipcMain } from 'electron'
+import * as catalogService from '../services/catalog.service'
 import * as coverService from '../services/cover.service'
 import * as exeMetadataService from '../services/exe-metadata.service'
 import * as gameService from '../services/game.service'
@@ -104,6 +105,19 @@ export function registerGameHandlers(): void {
     const deleted = gameService.deleteGame(id)
     playTracker.invalidateTargets()
     return deleted
+  })
+
+  // ---------- Danh mục game phổ biến ----------
+
+  // Danh mục + trạng thái trên máy (đã cài / cài qua launcher / không tìm thấy)
+  ipcMain.handle('games:getCatalog', () => catalogService.getCatalog())
+
+  ipcMain.handle('games:addFromCatalog', async (_event, ids: unknown) => {
+    const list = Array.isArray(ids) ? ids.filter((v): v is string => typeof v === 'string') : []
+    const added = await catalogService.addFromCatalog(list)
+    playTracker.invalidateTargets()
+    for (const game of added) void steamArtService.autoFetchArt(game.id)
+    return added
   })
 
   ipcMain.handle('games:launch', (_event, id: string) => {

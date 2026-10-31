@@ -166,8 +166,12 @@ export function Sidebar({
           {filteredGames.map((game) => (
             <li key={game.id}>
               <button
-                className={`library-item ${selectedGameId === game.id ? 'active' : ''}`}
-                title="Bấm: xem chi tiết · Bấm đúp: chơi · Chuột phải: thêm tuỳ chọn"
+                className={`library-item ${selectedGameId === game.id ? 'active' : ''} ${game.exe_path.trim() ? '' : 'unlinked'}`}
+                title={
+                  game.exe_path.trim()
+                    ? 'Bấm: xem chi tiết · Bấm đúp: chơi · Chuột phải: thêm tuỳ chọn'
+                    : 'Chưa có file chạy · Bấm đúp để chọn file game'
+                }
                 onClick={() => onSelectGame(game)}
                 onDoubleClick={() => {
                   if (!runningIds.has(game.id)) launch(game)

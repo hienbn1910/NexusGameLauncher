@@ -8,6 +8,8 @@ declare global {
     process_name?: string
     // Thư mục theo dõi giờ chơi thêm vào (ngoài thư mục cài game)
     watch_dirs?: string[]
+    // Mã game SteamGridDB khi chọn từ gợi ý tên game (null = bỏ liên kết)
+    sgdb_id?: number | null
   }
 
   // genre / process_name = '', watch_dirs = [] để xoá giá trị
@@ -18,7 +20,7 @@ declare global {
   interface Game {
     id: string
     title: string
-    exe_path: string
+    exe_path: string // '' = chưa liên kết (thêm từ danh mục nhưng chưa tìm thấy trên máy)
     source: string
     source_id: string | null
     genre: string | null
@@ -32,6 +34,10 @@ declare global {
     process_name: string | null
     notes: string | null
     watch_dirs: string | null // Mỗi dòng một thư mục
+    launch_args: string | null // Tham số khi chạy (JSON mảng chuỗi), vd của Riot Client
+    catalog_id: string | null
+    game_exe: string | null // Exe game thật (lấy icon) khi exe_path là launcher
+    sgdb_id: number | null // Mã game trên SteamGridDB (chọn từ gợi ý tên game)
     created_at: string
   }
 
@@ -70,7 +76,22 @@ declare global {
     size: { path: string; bytes: number; files: number; partial: boolean } | null
   }
 
-  type LaunchResult = { ok: true; game: Game } | { ok: false; error: string }
+  // code 'unlinked': game chưa có file chạy => mở form để người dùng chọn file
+  type LaunchResult =
+    { ok: true; game: Game } | { ok: false; error: string; code?: 'unlinked'; game?: Game }
+
+  // Game trong danh mục game phổ biến + trạng thái trên máy
+  // installed = đã cài; available = mở qua launcher (Steam, Riot Client) để cài; missing = không thấy
+  type CatalogStatus = 'installed' | 'available' | 'missing'
+  interface CatalogItem {
+    id: string
+    title: string
+    genre: string
+    steamAppId: string | null
+    status: CatalogStatus
+    via: string | null // Mở qua đâu: Steam, Riot Client, HoYoPlay...
+    inLibrary: boolean
+  }
 
   // launcher: mới mở launcher, chưa vào game (không đếm giờ); playing: game thật đang chạy
   type SessionPhase = 'launcher' | 'playing'
@@ -176,6 +197,7 @@ declare global {
     name: string
     year: number | null
     verified: boolean
+    platforms: string[] // Nền tảng có game, vd ['steam', 'gog']
   }
 
   interface SgdbImage {
@@ -259,6 +281,9 @@ declare global {
       ) => Promise<Game | undefined>
       getPathForFile: (file: File) => string
       launch: (id: string) => Promise<LaunchResult>
+      getCatalog: () => Promise<CatalogItem[]>
+      // Thêm game đã chọn từ danh mục (game không tìm thấy trên máy => chưa liên kết)
+      addFromCatalog: (ids: string[]) => Promise<Game[]>
       getRunning: () => Promise<RunningSession[]>
       getStats: () => Promise<PlayStats>
       // Màu chủ đạo của ảnh game dạng "r, g, b"
@@ -316,6 +341,8 @@ declare global {
       saveApiKey: (apiKey: string) => Promise<ApiResult<void>>
       search: (term: string) => Promise<ApiResult<SgdbGame[]>>
       getBySteamAppId: (appId: string) => Promise<ApiResult<SgdbGame | null>>
+      // null = game không có trên Steam
+      getSteamAppId: (gameId: number) => Promise<ApiResult<string | null>>
       getImages: (
         gameId: number,
         kind: SgdbImageKind,

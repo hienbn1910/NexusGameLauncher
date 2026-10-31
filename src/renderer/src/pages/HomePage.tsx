@@ -28,6 +28,7 @@ interface HomePageProps {
   onOpenSettings: () => void
   onSelectGame: (game: Game) => void
   onAddGame: () => void
+  onPickPopular: () => void // Mở hộp thoại chọn game phổ biến
   onEditGame: (game: Game) => void
   onToggleFavorite: (game: Game) => void
 }
@@ -43,6 +44,7 @@ export function HomePage({
   onOpenSettings,
   onSelectGame,
   onAddGame,
+  onPickPopular,
   onEditGame,
   onToggleFavorite
 }: HomePageProps): React.JSX.Element {
@@ -111,9 +113,14 @@ export function HomePage({
         <LayersIcon width={48} height={48} />
         <h2>Chưa có game nào</h2>
         <p>Thêm game vào thư viện để bắt đầu.</p>
-        <button className="btn btn-primary" onClick={onAddGame}>
-          <PlusIcon width={16} height={16} /> Thêm game
-        </button>
+        <div className="empty-actions">
+          <button className="btn btn-primary" onClick={onPickPopular}>
+            <StarIcon width={16} height={16} /> Chọn game phổ biến
+          </button>
+          <button className="btn btn-secondary" onClick={onAddGame}>
+            <PlusIcon width={16} height={16} /> Thêm game khác
+          </button>
+        </div>
       </div>
     )
   }

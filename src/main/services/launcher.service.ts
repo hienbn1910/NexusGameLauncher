@@ -4,9 +4,12 @@ import { dirname, extname } from 'path'
 import { shell } from 'electron'
 import * as gameService from './game.service'
 import type { Game } from './game.service'
-import { isTracking, trackLaunch } from './play-tracker.service'
+import { relink } from './catalog.service'
+import { invalidateTargets, isTracking, trackLaunch } from './play-tracker.service'
 
-export type LaunchResult = { ok: true; game: Game } | { ok: false; error: string }
+// code 'unlinked': game chưa có file chạy => giao diện mở form để người dùng chọn file
+export type LaunchResult =
+  { ok: true; game: Game } | { ok: false; error: string; code?: 'unlinked'; game?: Game }
 
 function isSteamUri(path: string): boolean {
   return /^steam:\/\//i.test(path.trim())
@@ -15,9 +18,9 @@ function isSteamUri(path: string): boolean {
 // ---------- Chạy exe ----------
 
 // Chạy file exe và chờ tới khi tiến trình thực sự được tạo (hoặc báo lỗi)
-function spawnExe(exePath: string): Promise<ChildProcess> {
+function spawnExe(exePath: string, args: string[]): Promise<ChildProcess> {
   return new Promise((resolve, reject) => {
-    const child = spawn(exePath, [], {
+    const child = spawn(exePath, args, {
       cwd: dirname(exePath), // Nhiều game cần chạy đúng thư mục để tìm file data
       detached: true, // Đóng launcher không làm tắt game
       stdio: 'ignore'
@@ -28,10 +31,12 @@ function spawnExe(exePath: string): Promise<ChildProcess> {
 }
 
 // Script PowerShell chạy exe với quyền Administrator (hiện hộp thoại UAC) rồi chờ game thoát.
-// Đường dẫn truyền qua biến môi trường để không phải xử lý escape ký tự đặc biệt.
+// Đường dẫn + tham số truyền qua biến môi trường để không phải xử lý escape ký tự đặc biệt.
 const ELEVATED_SCRIPT = `
 try {
-  $p = Start-Process -FilePath $env:GL_EXE -WorkingDirectory $env:GL_CWD -Verb RunAs -PassThru -ErrorAction Stop
+  $params = @{ FilePath = $env:GL_EXE; WorkingDirectory = $env:GL_CWD; Verb = 'RunAs'; PassThru = $true; ErrorAction = 'Stop' }
+  if ($env:GL_ARGS) { $params.ArgumentList = $env:GL_ARGS }
+  $p = Start-Process @params
   Write-Output 'STARTED'
   $p.WaitForExit()
 } catch {
@@ -41,7 +46,7 @@ try {
 `
 
 // Tiến trình trả về là PowerShell: nó thoát khi exe được chạy thoát
-function spawnElevated(exePath: string): Promise<ChildProcess> {
+function spawnElevated(exePath: string, args: string[]): Promise<ChildProcess> {
   return new Promise((resolve, reject) => {
     const child = spawn(
       'powershell.exe',
@@ -49,7 +54,13 @@ function spawnElevated(exePath: string): Promise<ChildProcess> {
       {
         windowsHide: true,
         stdio: ['ignore', 'pipe', 'ignore'],
-        env: { ...process.env, GL_EXE: exePath, GL_CWD: dirname(exePath) }
+        env: {
+          ...process.env,
+          GL_EXE: exePath,
+          GL_CWD: dirname(exePath),
+          // Tham số trong danh mục không có dấu cách nên ghép bằng dấu cách là đủ
+          GL_ARGS: args.join(' ')
+        }
       }
     )
 
@@ -67,13 +78,13 @@ function spawnElevated(exePath: string): Promise<ChildProcess> {
 }
 
 // Thử chạy bình thường; nếu exe đòi quyền admin (EACCES trên Windows) thì chạy lại qua UAC
-async function startExe(exePath: string): Promise<ChildProcess> {
+async function startExe(exePath: string, args: string[]): Promise<ChildProcess> {
   try {
-    return await spawnExe(exePath)
+    return await spawnExe(exePath, args)
   } catch (err) {
     const code = (err as NodeJS.ErrnoException).code
     if (process.platform === 'win32' && code === 'EACCES') {
-      return spawnElevated(exePath)
+      return spawnElevated(exePath, args)
     }
     throw err
   }
@@ -82,11 +93,27 @@ async function startExe(exePath: string): Promise<ChildProcess> {
 // ---------- Bật game ----------
 
 export async function launchGame(id: string): Promise<LaunchResult> {
-  const game = gameService.getGameById(id)
+  let game = gameService.getGameById(id)
   if (!game) return { ok: false, error: 'Không tìm thấy game' }
   if (isTracking(id)) return { ok: false, error: `${game.title} đang chạy rồi` }
 
+  // Game thêm từ danh mục nhưng chưa có trên máy: thử tìm lại (có thể vừa cài xong)
+  if (!gameService.isLinked(game)) {
+    const relinked = await relink(game).catch(() => null)
+    if (!relinked) {
+      return {
+        ok: false,
+        code: 'unlinked',
+        game,
+        error: `Chọn file chạy của ${game.title} để bắt đầu chơi`
+      }
+    }
+    game = relinked
+    invalidateTargets()
+  }
+
   const target = game.exe_path.trim()
+  const args = gameService.parseLaunchArgs(game.launch_args)
 
   try {
     let child: ChildProcess | null = null
@@ -101,7 +128,7 @@ export async function launchGame(id: string): Promise<LaunchResult> {
       const errorMessage = await shell.openPath(target)
       if (errorMessage) return { ok: false, error: errorMessage }
     } else {
-      child = await startExe(target)
+      child = await startExe(target, args)
     }
 
     // Theo dõi giờ chơi theo thư mục game (cả game Steam / shortcut nếu biết thư mục cài)

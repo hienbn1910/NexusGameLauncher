@@ -1,3 +1,4 @@
+import { is } from '@electron-toolkit/utils'
 import { getSetting, setSetting } from './settings.service'
 
 // Giao diện của app. Tối giản là mặc định, Cân bằng miễn phí,
@@ -6,7 +7,8 @@ export type ThemeId = 'minimal' | 'balanced' | 'neon'
 
 export const THEME_IDS: ThemeId[] = ['minimal', 'balanced', 'neon']
 export const DEFAULT_THEME: ThemeId = 'minimal'
-const FREE_THEMES: ThemeId[] = ['minimal', 'balanced']
+// Bản dev (npm run dev) mở khoá mọi theme để kiểm tra; bản đóng gói vẫn khoá Neon
+const FREE_THEMES: ThemeId[] = is.dev ? THEME_IDS : ['minimal', 'balanced']
 
 const THEME_KEY = 'ui_theme'
 // Danh sách theme đã mở khoá thêm (JSON). Hệ thống nhiệm vụ sẽ ghi vào đây

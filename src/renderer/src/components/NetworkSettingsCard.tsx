@@ -3,9 +3,9 @@ import { createPortal } from 'react-dom'
 import { SaveIcon, XIcon } from './Icons'
 
 const DNS_OPTIONS: { key: DnsProvider; label: string }[] = [
-  { key: 'off', label: 'Tắt' },
+  { key: 'google', label: 'Google 8.8.8.8' }, // Mặc định
   { key: 'cloudflare', label: 'Cloudflare 1.1.1.1' },
-  { key: 'google', label: 'Google 8.8.8.8' }
+  { key: 'off', label: 'Tắt' }
 ]
 
 const PROXY_OPTIONS: { key: ProxyMode; label: string }[] = [

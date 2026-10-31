@@ -11,13 +11,14 @@ const API_KEY_SETTING = 'steamgriddb_api_key'
 const ALLOWED_IMAGE_HOSTS = new Set(['cdn2.steamgriddb.com', 'cdn.steamgriddb.com'])
 const MAX_IMAGE_BYTES = 20 * 1024 * 1024
 
-export type ImageKind = 'poster' | 'grid' | 'hero'
+export type ImageKind = 'poster' | 'grid' | 'hero' | 'logo'
 
 export interface SgdbGame {
   id: number
   name: string
   year: number | null
   verified: boolean
+  platforms: string[] // Nền tảng có game, vd ['steam', 'gog']
 }
 
 export interface SgdbImage {
@@ -78,6 +79,8 @@ interface RawGame {
   name: string
   release_date?: number
   verified?: boolean
+  types?: string[]
+  external_platform_data?: { steam?: { id?: string }[] }
 }
 
 function mapGame(g: RawGame): SgdbGame {
@@ -85,15 +88,34 @@ function mapGame(g: RawGame): SgdbGame {
     id: g.id,
     name: g.name,
     year: g.release_date ? new Date(g.release_date * 1000).getFullYear() : null,
-    verified: !!g.verified
+    verified: !!g.verified,
+    platforms: Array.isArray(g.types) ? g.types : []
   }
 }
+
+// Gõ lại từ khoá cũ (xoá bớt chữ rồi gõ lại) không gọi API lần nữa
+const searchCache = new Map<string, SgdbGame[]>()
+const SEARCH_CACHE_MAX = 100
 
 export async function searchGames(term: string): Promise<SgdbGame[]> {
   const q = term.trim()
   if (!q) return []
+  const cacheKey = q.toLowerCase()
+  const cached = searchCache.get(cacheKey)
+  if (cached) return cached
   const data = await request<RawGame[]>(`/search/autocomplete/${encodeURIComponent(q)}`)
-  return data.map(mapGame)
+  const games = data.map(mapGame)
+  if (searchCache.size >= SEARCH_CACHE_MAX) searchCache.clear()
+  searchCache.set(cacheKey, games)
+  return games
+}
+
+// Steam App ID của game trên SteamGridDB; null = game không có trên Steam
+export async function getSteamAppId(gameId: number): Promise<string | null> {
+  if (!Number.isInteger(gameId) || gameId <= 0) return null
+  const data = await request<RawGame>(`/games/id/${gameId}?platformdata=steam`)
+  const id = data.external_platform_data?.steam?.[0]?.id
+  return id && /^\d+$/.test(id) ? id : null
 }
 
 export async function getGameBySteamAppId(appId: string): Promise<SgdbGame | null> {
@@ -123,7 +145,8 @@ interface RawImage {
 const IMAGE_PATHS: Record<ImageKind, (gameId: number) => string> = {
   poster: (id) => `/grids/game/${id}?dimensions=600x900,342x482,660x930`,
   grid: (id) => `/grids/game/${id}?dimensions=920x430,460x215`,
-  hero: (id) => `/heroes/game/${id}?`
+  hero: (id) => `/heroes/game/${id}?`,
+  logo: (id) => `/logos/game/${id}?`
 }
 
 export async function getImages(gameId: number, kind: ImageKind, page = 0): Promise<SgdbImage[]> {
@@ -167,6 +190,19 @@ const MIME_EXT: Record<string, string> = {
 
 // Tải ảnh về file tạm; form sẽ copy vào thư mục covers khi người dùng bấm Lưu
 export async function downloadImage(url: string): Promise<{ path: string; preview: string }> {
+  const path = await downloadToTemp(url)
+  const preview = await createPreview(path)
+  if (!preview) throw new Error('Không đọc được ảnh vừa tải')
+  return { path, preview }
+}
+
+// Ảnh đầu tiên (điểm cao nhất) của game => file tạm; null nếu game chưa có ảnh loại này
+export async function downloadTopImage(gameId: number, kind: ImageKind): Promise<string | null> {
+  const [first] = await getImages(gameId, kind)
+  return first ? downloadToTemp(first.url) : null
+}
+
+async function downloadToTemp(url: string): Promise<string> {
   const parsed = new URL(url)
   if (parsed.protocol !== 'https:' || !ALLOWED_IMAGE_HOSTS.has(parsed.host)) {
     throw new Error('URL ảnh không hợp lệ')
@@ -183,10 +219,7 @@ export async function downloadImage(url: string): Promise<{ path: string; previe
 
   const path = join(tempDir(), `sgdb-${Date.now()}.${ext}`)
   await writeFile(path, buffer)
-
-  const preview = await createPreview(path)
-  if (!preview) throw new Error('Không đọc được ảnh vừa tải')
-  return { path, preview }
+  return path
 }
 
 // Dọn file tạm từ lần chạy trước

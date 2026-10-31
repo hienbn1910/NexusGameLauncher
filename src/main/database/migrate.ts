@@ -98,6 +98,27 @@ export function runMigrations(): void {
     db.exec('ALTER TABLE games ADD COLUMN watch_dirs TEXT')
   }
 
+  // Tham số dòng lệnh khi chạy exe (JSON mảng chuỗi), vd Riot Client: --launch-product=valorant
+  if (!has('launch_args')) {
+    db.exec('ALTER TABLE games ADD COLUMN launch_args TEXT')
+  }
+
+  // Mã game trong danh mục game phổ biến (để tự tìm lại đường dẫn khi chưa liên kết)
+  if (!has('catalog_id')) {
+    db.exec('ALTER TABLE games ADD COLUMN catalog_id TEXT')
+  }
+
+  // Exe của game thật (không phải launcher): lấy icon game. Điền sẵn từ danh mục,
+  // hoặc tự ghi lại khi tracker thấy game chạy trong thư mục game
+  if (!has('game_exe')) {
+    db.exec('ALTER TABLE games ADD COLUMN game_exe TEXT')
+  }
+
+  // Mã game trên SteamGridDB (chọn từ gợi ý tên game): tự lấy ảnh, bỏ qua bước chọn game khi tìm ảnh
+  if (!has('sgdb_id')) {
+    db.exec('ALTER TABLE games ADD COLUMN sgdb_id INTEGER')
+  }
+
   // Hồ sơ người dùng. Hiện chỉ có một hồ sơ trên máy (account_type = 'local');
   // remote_id dành cho lúc có tài khoản online: gắn hồ sơ trên máy với tài khoản trên máy chủ
   db.exec(`

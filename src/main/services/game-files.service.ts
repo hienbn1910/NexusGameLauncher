@@ -15,6 +15,7 @@ export async function getInstallDir(gameId: string): Promise<string | null> {
   if (!game) return null
 
   const target = game.exe_path.trim()
+  if (!target) return null // Game chưa liên kết
   if (/^steam:\/\//i.test(target)) {
     const appId = game.source_id ?? game.steam_app_id
     return appId ? steamInstallDir(appId) : null

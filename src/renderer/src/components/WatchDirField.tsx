@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { FolderIcon } from './Icons'
+import { FolderIcon, XIcon } from './Icons'
 
 interface WatchDirFieldProps {
   gameId?: string
@@ -31,11 +31,6 @@ export function WatchDirField({
     }
   }, [gameId])
 
-  const check = async (dir: string): Promise<void> => {
-    const message = dir.trim() ? await window.electronAPI.games.validateWatchDir(dir.trim()) : null
-    setError(message ? { dir, message } : null)
-  }
-
   const pick = async (): Promise<void> => {
     const picked = await window.electronAPI.games.selectWatchDir()
     if (!picked) return
@@ -56,17 +51,27 @@ export function WatchDirField({
       <span className="field-label">
         Thư mục game <span className="field-optional">(không bắt buộc)</span>
       </span>
+      {/* Chỉ chọn qua hộp thoại (đường dẫn gõ tay dễ sai), giống ô file chạy game */}
       <div className="file-picker">
-        <input
-          className="file-picker-input"
-          placeholder={known?.path ?? 'Vd: D:\\Games\\Ten Game'}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onBlur={(e) => void check(e.target.value)}
-        />
+        <span className={`file-path ${value ? '' : 'placeholder'}`} title={value}>
+          {value || 'Chưa chọn (dùng thư mục tự động)'}
+        </span>
+        {value && (
+          <button
+            type="button"
+            className="icon-button"
+            title="Bỏ thư mục này"
+            onClick={() => {
+              onChange('')
+              setError(null)
+            }}
+          >
+            <XIcon width={16} height={16} />
+          </button>
+        )}
         <button type="button" className="btn btn-secondary" onClick={pick}>
           <FolderIcon width={16} height={16} />
-          Chọn thư mục
+          {value ? 'Đổi thư mục' : 'Chọn thư mục'}
         </button>
       </div>
       {shownError ? (

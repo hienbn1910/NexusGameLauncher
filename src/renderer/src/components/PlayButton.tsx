@@ -1,5 +1,5 @@
 import { useLauncher } from '../hooks/useLauncher'
-import { PlayIcon } from './Icons'
+import { FolderIcon, PlayIcon } from './Icons'
 
 interface PlayButtonProps {
   game: Game
@@ -34,6 +34,21 @@ export function PlayButton({
         title="Chưa vào game, chưa tính giờ"
       >
         <span className="open-dot" /> Đang mở
+      </button>
+    )
+  }
+
+  // Chưa có file chạy (thêm từ danh mục): bấm sẽ tìm lại trên máy, không thấy thì mở form chọn file
+  if (!game.exe_path.trim()) {
+    return (
+      <button
+        className="btn btn-primary"
+        disabled={launching}
+        title="Game chưa có file chạy trên máy này"
+        onClick={() => launch(game)}
+      >
+        <FolderIcon width={16} height={16} />
+        {launching ? 'Đang tìm game...' : 'Chọn file game'}
       </button>
     )
   }

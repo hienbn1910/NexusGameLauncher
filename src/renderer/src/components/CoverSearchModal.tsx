@@ -7,6 +7,8 @@ interface CoverSearchModalProps {
   initialQuery: string
   steamAppId?: string | null
   initialKind?: SgdbImageKind
+  // Game đã chọn từ gợi ý tên game => vào thẳng bước chọn ảnh
+  initialGame?: { id: number; name: string } | null
   onClose: () => void
   // Ảnh đã tải về file tạm, form sẽ dùng như ảnh chọn từ máy
   // target: ảnh dọc => poster, ảnh ngang/banner => cover
@@ -25,6 +27,7 @@ export function CoverSearchModal({
   initialQuery,
   steamAppId,
   initialKind = 'grid',
+  initialGame,
   onClose,
   onSelect
 }: CoverSearchModalProps): React.JSX.Element {
@@ -38,12 +41,14 @@ export function CoverSearchModal({
   const [searching, setSearching] = useState(false)
 
   // Bước 2: chọn ảnh
-  const [selectedGame, setSelectedGame] = useState<SgdbGame | null>(null)
+  const [selectedGame, setSelectedGame] = useState<SgdbGame | null>(
+    initialGame ? { ...initialGame, year: null, verified: false, platforms: [] } : null
+  )
   const [kind, setKind] = useState<SgdbImageKind>(initialKind)
   const [images, setImages] = useState<SgdbImage[]>([])
   const [page, setPage] = useState(0)
   const [hasMore, setHasMore] = useState(false)
-  const [loadingImages, setLoadingImages] = useState(false)
+  const [loadingImages, setLoadingImages] = useState(!!initialGame)
   const [selectedImage, setSelectedImage] = useState<SgdbImage | null>(null)
   const [downloading, setDownloading] = useState(false)
 
@@ -73,15 +78,33 @@ export function CoverSearchModal({
     [api]
   )
 
-  // Đã có API key: khớp theo Steam App ID (nếu có) và tìm theo tên game
+  const loadImages = useCallback(
+    async (gameId: number, imageKind: SgdbImageKind, pageIndex: number): Promise<void> => {
+      setLoadingImages(true)
+      setError(null)
+      const result = await api.getImages(gameId, imageKind, pageIndex)
+      setLoadingImages(false)
+      if (!result.ok) return setError(result.error)
+
+      setImages((prev) => (pageIndex === 0 ? result.data : [...prev, ...result.data]))
+      setPage(pageIndex)
+      setHasMore(result.data.length > 0)
+    },
+    [api]
+  )
+
+  // Đã có API key: game đã chọn sẵn => tải ảnh luôn; không thì khớp theo Steam App ID
+  // (nếu có) và tìm theo tên game
+  const initialGameId = initialGame?.id
   const loadInitial = useCallback(async (): Promise<void> => {
     setConfigured(true)
+    if (initialGameId) return loadImages(initialGameId, initialKind, 0)
     if (steamAppId) {
       const result = await api.getBySteamAppId(steamAppId)
       if (result.ok && result.data) setSteamMatch(result.data)
     }
     await search(initialQuery)
-  }, [api, steamAppId, initialQuery, search])
+  }, [api, steamAppId, initialQuery, search, initialGameId, initialKind, loadImages])
 
   useEffect(() => {
     api.isConfigured().then((ok) => {
@@ -90,27 +113,17 @@ export function CoverSearchModal({
     })
   }, [api, loadInitial])
 
-  const loadImages = async (
-    game: SgdbGame,
-    imageKind: SgdbImageKind,
-    pageIndex: number
-  ): Promise<void> => {
-    setLoadingImages(true)
-    setError(null)
-    const result = await api.getImages(game.id, imageKind, pageIndex)
-    setLoadingImages(false)
-    if (!result.ok) return setError(result.error)
-
-    setImages((prev) => (pageIndex === 0 ? result.data : [...prev, ...result.data]))
-    setPage(pageIndex)
-    setHasMore(result.data.length > 0)
+  // Vào thẳng bước chọn ảnh rồi bấm "Đổi game" => lúc này mới tìm danh sách game
+  const backToGames = (): void => {
+    setSelectedGame(null)
+    if (results.length === 0 && !steamMatch) void search(query)
   }
 
   const chooseGame = (game: SgdbGame): void => {
     setSelectedGame(game)
     setSelectedImage(null)
     setImages([])
-    void loadImages(game, kind, 0)
+    void loadImages(game.id, kind, 0)
   }
 
   const changeKind = (next: SgdbImageKind): void => {
@@ -118,7 +131,7 @@ export function CoverSearchModal({
     setKind(next)
     setSelectedImage(null)
     setImages([])
-    void loadImages(selectedGame, next, 0)
+    void loadImages(selectedGame.id, next, 0)
   }
 
   const confirm = async (image: SgdbImage | null = selectedImage): Promise<void> => {
@@ -183,7 +196,7 @@ export function CoverSearchModal({
   const renderImageStep = (game: SgdbGame): React.JSX.Element => (
     <>
       <div className="sgdb-image-toolbar">
-        <button type="button" className="link-button" onClick={() => setSelectedGame(null)}>
+        <button type="button" className="link-button" onClick={backToGames}>
           ← Đổi game
         </button>
         <strong className="sgdb-selected-game">{game.name}</strong>
@@ -231,7 +244,7 @@ export function CoverSearchModal({
         <button
           type="button"
           className="btn btn-ghost btn-sm sgdb-load-more"
-          onClick={() => loadImages(game, kind, page + 1)}
+          onClick={() => loadImages(game.id, kind, page + 1)}
         >
           Tải thêm
         </button>

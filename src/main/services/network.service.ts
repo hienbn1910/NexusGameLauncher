@@ -15,7 +15,9 @@ export interface NetworkSettings {
 }
 
 const SETTINGS_KEY = 'network'
-const DEFAULT_SETTINGS: NetworkSettings = { dns: 'off', proxyMode: 'system', proxyUrl: '' }
+// Mặc định bật DNS bảo mật qua Google: nhiều nhà mạng chặn Steam bằng DNS.
+// Ai đã lưu cài đặt mạng (kể cả chọn "Tắt") thì giữ nguyên lựa chọn đó
+const DEFAULT_SETTINGS: NetworkSettings = { dns: 'google', proxyMode: 'system', proxyUrl: '' }
 
 const DOH_SERVERS: Record<Exclude<DnsProvider, 'off'>, string> = {
   cloudflare: 'https://cloudflare-dns.com/dns-query',

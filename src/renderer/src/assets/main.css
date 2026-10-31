@@ -1026,6 +1026,11 @@ ul {
 .empty-state .btn {
   margin-top: 12px;
 }
+.empty-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
 .empty-state.compact {
   height: auto;
   padding: 60px 0;
@@ -1517,6 +1522,62 @@ ul {
   background: var(--accent-soft);
 }
 
+/* Gợi ý tên game từ SteamGridDB: gắn vào body (fixed) vì thân modal có thanh cuộn */
+.title-suggest {
+  position: fixed;
+  z-index: 150;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 300px;
+  margin: 0;
+  padding: 6px;
+  overflow-y: auto;
+  list-style: none;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-1);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+}
+
+.title-suggest-head {
+  padding: 4px 8px 6px;
+  font-size: 11px;
+  color: var(--text-3);
+}
+
+.title-suggest-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-1);
+  text-align: left;
+  font-size: 13px;
+}
+.title-suggest-item.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.title-suggest-name {
+  margin-right: auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.title-suggest-year {
+  flex-shrink: 0;
+  color: var(--text-3);
+  font-size: 12px;
+}
+
 .modal-footer {
   display: flex;
   justify-content: flex-end;
@@ -1620,22 +1681,6 @@ select.input option {
   text-overflow: ellipsis;
   font-size: 13px;
 }
-.file-picker-input {
-  flex: 1;
-  min-width: 0;
-  border: none;
-  background: none;
-  outline: none;
-  color: var(--text-1);
-  font-size: 13px;
-  user-select: text;
-}
-.file-picker-input::placeholder {
-  color: var(--text-3);
-}
-.file-picker:focus-within {
-  border-color: var(--accent);
-}
 .file-path.placeholder {
   color: var(--text-3);
 }
@@ -1689,6 +1734,140 @@ select.input option {
 .confirm-note {
   font-size: 13px;
   color: var(--text-3);
+}
+
+/* Lời nhắn hướng dẫn ở đầu form (vd game chưa liên kết: hãy chọn file chạy) */
+.form-notice {
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-1);
+  background: var(--accent-soft);
+  border: 1px solid rgb(from var(--accent) r g b / 0.35);
+}
+
+/* ---------- Hộp thoại game phổ biến (lần đầu mở app) ---------- */
+
+.starter-modal {
+  max-width: 760px;
+}
+.starter-subtitle {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--text-2);
+}
+.starter-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+.starter-card,
+.starter-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  text-align: left;
+}
+.starter-skeleton {
+  aspect-ratio: 2 / 3.6;
+  border-radius: 8px;
+  background: var(--bg-2);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+.starter-art {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 2 / 3;
+  overflow: hidden;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  transition:
+    border-color 0.15s,
+    transform 0.15s;
+}
+.starter-art img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.starter-initials {
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.85);
+}
+.starter-card:not(:disabled):hover .starter-art {
+  transform: translateY(-2px);
+}
+.starter-card.checked .starter-art {
+  border-color: var(--accent);
+}
+.starter-card.in-library {
+  cursor: default;
+  opacity: 0.55;
+}
+.starter-check {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--btn-primary-fg);
+  background: rgba(0, 0, 0, 0.5);
+  border: 1.5px solid rgba(255, 255, 255, 0.7);
+}
+.starter-card.checked .starter-check,
+.starter-card.in-library .starter-check {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.starter-title {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 13px;
+  font-weight: 600;
+}
+.starter-status {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 11px;
+  color: var(--text-3);
+}
+.starter-status.installed {
+  color: var(--success);
+}
+
+/* ---------- Bước nhập SteamGridDB key (lần đầu mở app) ---------- */
+
+.sgdb-setup-modal {
+  max-width: 520px;
+}
+.sgdb-setup-intro {
+  display: flex;
+  gap: 12px;
+  line-height: 1.5;
+  color: var(--text-2);
+}
+.sgdb-setup-intro strong {
+  color: var(--text-1);
+}
+.sgdb-setup-optional {
+  color: var(--text-3);
+}
+
+/* Game chưa liên kết trong thư viện (chưa có file chạy) */
+.library-item.unlinked .library-title {
+  opacity: 0.55;
 }
 
 .form-error {

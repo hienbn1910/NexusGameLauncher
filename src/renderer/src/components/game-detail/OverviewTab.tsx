@@ -107,9 +107,13 @@ export function OverviewTab({
             <InfoRow label="Nguồn">{game.source === 'steam' ? 'Steam' : 'Tự thêm'}</InfoRow>
             {appId && <InfoRow label="Steam App ID">{appId}</InfoRow>}
             <InfoRow label={isSteamUri ? 'Mở qua' : 'File chạy'}>
-              <span className="info-path" title={game.exe_path}>
-                {game.exe_path}
-              </span>
+              {game.exe_path.trim() ? (
+                <span className="info-path" title={game.exe_path}>
+                  {game.exe_path}
+                </span>
+              ) : (
+                'Chưa liên kết'
+              )}
             </InfoRow>
             {game.process_name && <InfoRow label="Tiến trình">{game.process_name}</InfoRow>}
             <InfoRow label="Thư mục">

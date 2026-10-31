@@ -43,9 +43,12 @@ export function logoUrl(game: Pick<Game, 'logo_path'>): string | null {
 // Icon của game: lấy từ exe tiến trình game, không có thì từ file launcher.
 // null với game Steam (không có file exe để đọc icon).
 // Thêm đường dẫn + tên tiến trình vào query để icon tự cập nhật khi đổi một trong hai
-export function iconUrl(game: Pick<Game, 'id' | 'exe_path' | 'process_name'>): string | null {
-  if (/^steam:\/\//i.test(game.exe_path.trim())) return null
-  const version = `${game.exe_path}|${game.process_name ?? ''}`
+export function iconUrl(
+  game: Pick<Game, 'id' | 'exe_path' | 'process_name' | 'game_exe'>
+): string | null {
+  const path = game.exe_path.trim()
+  if (!path || /^steam:\/\//i.test(path)) return null // Chưa liên kết / game Steam
+  const version = `${game.exe_path}|${game.process_name ?? ''}|${game.game_exe ?? ''}`
   return `game-media://icon/${game.id}?v=${encodeURIComponent(version)}`
 }
 

@@ -233,6 +233,7 @@ interface Session {
   firstPlayAt: number | null // Lúc game thật chạy lần đầu (mốc phiên chơi trong thống kê)
   candidates: Map<string, Candidate> // pid:path => exe lạ do launcher sinh ra
   suggested: Set<string> // Thư mục đã gợi ý trong phiên này
+  gameExeChecked: boolean // Đã kiểm tra / ghi lại exe game (icon) trong phiên này
 }
 
 const sessions = new Map<string, Session>()
@@ -308,7 +309,8 @@ function newSession(origin: Session['origin'], child: ChildProcess | null): Sess
     playedMs: 0,
     firstPlayAt: null,
     candidates: new Map(),
-    suggested: new Set()
+    suggested: new Set(),
+    gameExeChecked: false
   }
 }
 
@@ -329,6 +331,7 @@ function startPlaying(gameId: string, session: Session, since = Date.now()): voi
 interface Presence {
   game: boolean
   launcher: boolean
+  gameExe: string | null // Đường dẫn (chữ hoa/thường gốc) của một exe game đang chạy
 }
 
 function presenceOf(
@@ -338,7 +341,7 @@ function presenceOf(
   procs: ProcessInfo[],
   owner: (path: string) => Owner | null
 ): Presence {
-  const result: Presence = { game: false, launcher: false }
+  const result: Presence = { game: false, launcher: false, gameExe: null }
   for (const p of procs) {
     if (IGNORED_PROCESS.test(p.name)) continue
     let kind: DirKind | null = null
@@ -349,7 +352,10 @@ function presenceOf(
       kind = target?.split ? 'launcher' : 'game'
     }
     if (kind) result[kind] = true
-    if (result.game && result.launcher) break
+    if (kind === 'game' && p.path && !result.gameExe && !HELPER_PROCESS.test(p.name)) {
+      result.gameExe = p.rawPath ?? p.path
+    }
+    if (result.game && result.launcher && result.gameExe) break
   }
   // Launcher do Nexus mở còn chạy: là launcher nếu phân biệt được, không thì tính là đang chơi
   if (session?.childAlive) result[target?.split ? 'launcher' : 'game'] = true
@@ -389,6 +395,30 @@ function updateSession(gameId: string, session: Session, presence: Presence): vo
   } else if (!session.childAlive && now - session.waitingSince > NOT_SEEN_TIMEOUT_MS) {
     endSession(gameId)
   }
+}
+
+// ---------- Icon game thật ----------
+
+// Game có thư mục game riêng (exe_path là launcher): ghi lại exe game đang chạy để lấy icon game
+// thay cho icon launcher. Giữ exe cũ nếu nó vẫn còn và vẫn thuộc thư mục game (không đổi qua lại)
+function rememberGameExe(
+  gameId: string,
+  session: Session,
+  target: Target | undefined,
+  presence: Presence,
+  owner: (path: string) => Owner | null
+): void {
+  if (session.gameExeChecked || !target?.split || !presence.gameExe) return
+  session.gameExeChecked = true
+  const game = gameService.getGameById(gameId)
+  if (!game) return
+  const current = game.game_exe
+  const stillValid =
+    !!current && existsSync(current) && owner(resolve(current).toLowerCase())?.gameId === gameId
+  if (stillValid) return
+  const updated = gameService.setGameExe(gameId, presence.gameExe)
+  // Báo giao diện để đổi icon
+  if (updated) send('games:updated', updated)
 }
 
 // ---------- Gợi ý thư mục game từ cây tiến trình ----------
@@ -525,8 +555,11 @@ async function poll(): Promise<void> {
 
     for (const [gameId, session] of [...sessions]) {
       const target = map.get(gameId)
-      updateSession(gameId, session, presenceOf(gameId, session, target, procs, owner))
-      if (sessions.has(gameId)) checkSuggestions(gameId, session, target, procs, owner)
+      const presence = presenceOf(gameId, session, target, procs, owner)
+      updateSession(gameId, session, presence)
+      if (!sessions.has(gameId)) continue
+      checkSuggestions(gameId, session, target, procs, owner)
+      rememberGameExe(gameId, session, target, presence, owner)
     }
 
     // Game mở ngoài Nexus: chỉ nhận khi exe game chạy (launcher ngồi sẵn ở khay hệ thống thì bỏ qua)

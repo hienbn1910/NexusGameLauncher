@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { GENRES } from '../constants/genres'
 import { coverUrl, gameGradient, posterUrl } from '../utils/gameArt'
 import { CoverPicker } from './CoverPicker'
 import { CoverSearchModal } from './CoverSearchModal'
 import { FolderIcon, PlusIcon, SaveIcon, SearchIcon, StarIcon, TrashIcon, XIcon } from './Icons'
+import { TitleAutocomplete } from './TitleAutocomplete'
 import { WatchDirField } from './WatchDirField'
 
 const SUGGESTION_LABEL: Record<NameSuggestion['source'], string> = {
@@ -20,6 +21,8 @@ interface GameFormModalProps {
   onDeleted?: (id: string) => void
   // Mở thẳng bước xác nhận xoá (từ menu chuột phải)
   startWithDelete?: boolean
+  // Lời nhắn ở đầu form (vd game chưa liên kết: hãy chọn file chạy)
+  notice?: string
 }
 
 type LaunchMode = 'file' | 'steam'
@@ -27,6 +30,17 @@ type LaunchMode = 'file' | 'steam'
 type SteamLookup =
   | { title: string; status: 'searching' | 'notfound' }
   | { title: string; status: 'found'; match: SteamAppMatch }
+
+// Game đã chọn trên SteamGridDB; chỉ còn hiệu lực khi tên game vẫn đúng tên đã chọn
+interface SgdbPick {
+  id: number
+  name: string
+}
+
+// App ID Steam lấy từ game đã chọn trên SteamGridDB (sgdbId = game lúc lấy)
+type SgdbSteam =
+  | { sgdbId: number; status: 'loading' | 'none' }
+  | { sgdbId: number; status: 'found'; appId: string }
 
 // source = ảnh mới chọn (chưa lưu), removed = muốn xoá ảnh hiện tại
 interface ImageSlot {
@@ -43,27 +57,21 @@ function fileNameWithoutExt(path: string): string {
 
 const isSteamUri = (value: string): boolean => /^steam:\/\//i.test(value.trim())
 
-// Chấp nhận App ID (vd 730) hoặc URI đầy đủ (vd steam://rungameid/730)
-function toSteamUri(value: string): string | null {
-  const v = value.trim()
-  if (/^\d+$/.test(v)) return `steam://rungameid/${v}`
-  if (isSteamUri(v)) return v
-  return null
-}
-
 export function GameFormModal({
   game,
   onClose,
   onSaved,
   onDeleted,
-  startWithDelete = false
+  startWithDelete = false,
+  notice
 }: GameFormModalProps): React.JSX.Element {
   const isEdit = !!game
   const [title, setTitle] = useState(game?.title ?? '')
   const initialPath = game?.exe_path ?? ''
   const [mode, setMode] = useState<LaunchMode>(isSteamUri(initialPath) ? 'steam' : 'file')
   const [exePath, setExePath] = useState(isSteamUri(initialPath) ? '' : initialPath)
-  const [steamInput, setSteamInput] = useState(isSteamUri(initialPath) ? initialPath : '')
+  // App ID đang lưu (sửa game Steam); không cho gõ tay, đổi bằng cách chọn tên game từ gợi ý
+  const initialAppId = isSteamUri(initialPath) ? (initialPath.match(/(\d+)$/)?.[1] ?? '') : ''
   const [genre, setGenre] = useState(game?.genre ?? '')
   // Thư mục game để tính giờ chơi (để trống = thư mục cài game)
   const [watchDir, setWatchDir] = useState(game?.watch_dirs?.split('\n')[0] ?? '')
@@ -71,6 +79,12 @@ export function GameFormModal({
   // Gợi ý tên game; titleTouched = người dùng đã tự gõ tên thì không ghi đè nữa
   const [suggestions, setSuggestions] = useState<NameSuggestion[]>([])
   const [titleTouched, setTitleTouched] = useState(isEdit)
+  const [sgdbPick, setSgdbPick] = useState<SgdbPick | null>(
+    game?.sgdb_id ? { id: game.sgdb_id, name: game.title } : null
+  )
+  // Tên tự điền từ exe gần giống một game trên SteamGridDB => hỏi "Có phải: ...?"
+  const [exeGuess, setExeGuess] = useState<{ forTitle: string; game: SgdbGame } | null>(null)
+  const [sgdbSteam, setSgdbSteam] = useState<SgdbSteam | null>(null)
   // Ảnh bìa ngang (cover) và dọc (poster), chỉ lưu khi bấm Lưu
   const [images, setImages] = useState<Record<CoverKind, ImageSlot>>({
     cover: { preview: game ? coverUrl(game) : null, source: null, removed: false },
@@ -78,7 +92,7 @@ export function GameFormModal({
   })
   // Loại ảnh mở sẵn khi tìm online (null = đóng hộp thoại tìm)
   const [coverSearchKind, setCoverSearchKind] = useState<SgdbImageKind | null>(null)
-  // Tự tìm Steam App ID theo tên game khi để trống ô App ID (title = tên lúc tìm)
+  // Tự tìm Steam App ID theo tên game khi chưa có App ID (title = tên lúc tìm)
   const [steamLookup, setSteamLookup] = useState<SteamLookup | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(startWithDelete && !!game)
@@ -86,8 +100,22 @@ export function GameFormModal({
 
   const closeCoverSearch = useCallback(() => setCoverSearchKind(null), [])
 
-  const autoSteam = mode === 'steam' && !steamInput.trim()
+  // Có lỗi => cuộn thân form lên đầu để thấy thông báo
+  const bodyRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (error) bodyRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [error])
+
   const trimmedTitle = title.trim()
+  // Sửa tên khác tên đã chọn => bỏ liên kết SteamGridDB
+  const linkedSgdb = sgdbPick && sgdbPick.name === trimmedTitle ? sgdbPick : null
+  const linkedSteam = linkedSgdb && sgdbSteam?.sgdbId === linkedSgdb.id ? sgdbSteam : null
+  const sgdbSteamHint = mode === 'steam' ? linkedSteam : null
+  // App ID chắc chắn: của game đã chọn trên SteamGridDB, không thì App ID đang lưu
+  const fixedAppId = linkedSteam?.status === 'found' ? linkedSteam.appId : initialAppId
+  // Chưa có App ID => tự tìm trên Steam theo tên game
+  const autoSteam = mode === 'steam' && !fixedAppId && linkedSteam?.status !== 'loading'
+  const guess = exeGuess && exeGuess.forTitle === title && !linkedSgdb ? exeGuess.game : null
   // Kết quả tìm chỉ dùng được nếu tên game chưa bị sửa sau lúc tìm
   const lookup = autoSteam && steamLookup?.title === trimmedTitle ? steamLookup : null
 
@@ -112,15 +140,9 @@ export function GameFormModal({
     }
   }, [autoSteam, trimmedTitle])
 
-  // App ID đang dùng: người dùng nhập, hoặc kết quả tự tìm
+  // App ID đang dùng: lấy từ SteamGridDB / đang lưu, hoặc kết quả tự tìm theo tên
   const steamAppId =
-    mode !== 'steam'
-      ? null
-      : steamInput.trim()
-        ? (toSteamUri(steamInput)?.match(/(\d+)$/)?.[1] ?? null)
-        : lookup?.status === 'found'
-          ? lookup.match.appId
-          : null
+    mode !== 'steam' ? null : fixedAppId || (lookup?.status === 'found' ? lookup.match.appId : null)
 
   // Esc: đang hỏi xác nhận xoá thì quay lại form, không thì đóng modal
   useEffect(() => {
@@ -133,6 +155,36 @@ export function GameFormModal({
     return () => window.removeEventListener('keydown', handler)
   }, [onClose, confirmDelete])
 
+  // Chế độ Steam: lấy App ID của game đã chọn trên SteamGridDB
+  const fillSteamFromSgdb = async (pick: SgdbPick): Promise<void> => {
+    if (sgdbSteam?.sgdbId === pick.id) return // Đã lấy rồi
+    setSgdbSteam({ sgdbId: pick.id, status: 'loading' })
+    const result = await window.electronAPI.steamGridDb.getSteamAppId(pick.id)
+    const appId = result.ok ? result.data : null
+    // Chọn game khác trong lúc chờ => bỏ kết quả cũ
+    setSgdbSteam((prev) =>
+      prev?.sgdbId !== pick.id
+        ? prev
+        : appId
+          ? { sgdbId: pick.id, status: 'found', appId }
+          : { sgdbId: pick.id, status: 'none' }
+    )
+  }
+
+  const pickSgdb = (found: SgdbGame): void => {
+    const pick = { id: found.id, name: found.name }
+    setTitle(found.name)
+    setTitleTouched(true)
+    setSgdbPick(pick)
+    setExeGuess(null)
+    if (mode === 'steam') void fillSteamFromSgdb(pick)
+  }
+
+  const changeMode = (next: LaunchMode): void => {
+    setMode(next)
+    if (next === 'steam' && linkedSgdb) void fillSteamFromSgdb(linkedSgdb)
+  }
+
   const pickExe = async (): Promise<void> => {
     const path = await window.electronAPI.games.selectExe()
     if (!path) return
@@ -141,8 +193,19 @@ export function GameFormModal({
 
     const { suggestions: found } = await window.electronAPI.games.inspectExe(path)
     setSuggestions(found)
-    if (!titleTouched || !title.trim()) {
-      setTitle(found[0]?.name ?? fileNameWithoutExt(path))
+    if (titleTouched && title.trim()) return
+
+    const autoTitle = found[0]?.name ?? fileNameWithoutExt(path)
+    setTitle(autoTitle)
+    // Tìm tên vừa đoán trên SteamGridDB: trùng tên => liên kết luôn, gần giống => hỏi lại
+    const result = await window.electronAPI.steamGridDb.search(autoTitle)
+    const top = result.ok ? result.data[0] : undefined
+    if (!top) return
+    if (top.name.toLowerCase() === autoTitle.toLowerCase()) {
+      setTitle((current) => (current === autoTitle ? top.name : current))
+      setSgdbPick({ id: top.id, name: top.name })
+    } else {
+      setExeGuess({ forTitle: autoTitle, game: top })
     }
   }
 
@@ -174,24 +237,16 @@ export function GameFormModal({
 
     setSubmitting(true)
     if (mode === 'steam') {
-      let uri = toSteamUri(steamInput)
-      if (!steamInput.trim()) {
-        // Bấm Lưu trước khi kịp tìm xong => tìm luôn
-        const match =
-          lookup?.status === 'found'
-            ? lookup.match
-            : await window.electronAPI.games.findSteamApp(trimmedTitle)
-        if (match) uri = `steam://rungameid/${match.appId}`
-      }
-      if (!uri) {
+      // Bấm Lưu trước khi kịp tìm xong => tìm luôn
+      const appId =
+        steamAppId ?? (await window.electronAPI.games.findSteamApp(trimmedTitle))?.appId ?? null
+      if (!appId) {
         setSubmitting(false)
         return setError(
-          steamInput.trim()
-            ? 'App ID không hợp lệ. Nhập số (vd: 730) hoặc URI dạng steam://...'
-            : `Không tìm thấy "${trimmedTitle}" trên Steam. Kiểm tra lại tên game hoặc nhập App ID.`
+          `Không tìm thấy "${trimmedTitle}" trên Steam. Hãy chọn đúng tên game trong danh sách gợi ý.`
         )
       }
-      launchPath = uri
+      launchPath = `steam://rungameid/${appId}`
     }
 
     try {
@@ -202,6 +257,7 @@ export function GameFormModal({
           exe_path: launchPath,
           genre,
           watch_dirs: watchDir.trim() ? [watchDir.trim()] : [],
+          sgdb_id: linkedSgdb?.id ?? null,
           is_favorite: favorite
         })
       } else {
@@ -209,7 +265,8 @@ export function GameFormModal({
           title: title.trim(),
           exe_path: launchPath,
           genre: genre || undefined,
-          watch_dirs: watchDir.trim() ? [watchDir.trim()] : []
+          watch_dirs: watchDir.trim() ? [watchDir.trim()] : [],
+          sgdb_id: linkedSgdb?.id ?? null
         })
         if (favorite) {
           saved = await window.electronAPI.games.update(saved.id, { is_favorite: true })
@@ -291,7 +348,14 @@ export function GameFormModal({
           </>
         ) : (
           <>
-            <div className="modal-body">
+            <div className="modal-body" ref={bodyRef}>
+              {/* Lỗi đặt trên cùng để dễ thấy (form dài, nút Lưu ở cuối) */}
+              {error && (
+                <p className="form-error" role="alert">
+                  {error}
+                </p>
+              )}
+              {notice && <p className="form-notice">{notice}</p>}
               <div className="cover-row">
                 <div className="cover-slot">
                   <CoverPicker
@@ -330,25 +394,39 @@ export function GameFormModal({
                 </div>
               </div>
               <span className="field-hint cover-row-hint">
-                Ảnh dọc dùng cho lưới ảnh bìa trong Kho game. Ảnh online lấy từ SteamGridDB, bạn
-                chọn và xác nhận trước khi dùng.
+                Ảnh dọc dùng cho lưới ảnh bìa trong Kho game. Chọn tên game từ gợi ý thì ô ảnh còn
+                trống sẽ tự lấy ảnh từ SteamGridDB sau khi lưu.
               </span>
 
               <div className="field">
                 <label className="field-label" htmlFor="game-title">
                   Tên game
                 </label>
-                <input
+                <TitleAutocomplete
                   id="game-title"
-                  className="input"
                   autoFocus
                   placeholder="Vd: Hollow Knight"
                   value={title}
-                  onChange={(e) => {
-                    setTitle(e.target.value)
+                  onChange={(value) => {
+                    setTitle(value)
                     setTitleTouched(true)
                   }}
+                  onPick={pickSgdb}
                 />
+                {guess && (
+                  <div className="name-suggestions">
+                    <span>Có phải:</span>
+                    <button
+                      type="button"
+                      className="suggestion-chip"
+                      title="Tên trên SteamGridDB"
+                      onClick={() => pickSgdb(guess)}
+                    >
+                      {guess.name}
+                      {guess.year && ` (${guess.year})`}?
+                    </button>
+                  </div>
+                )}
                 {suggestions.length > 0 && (
                   <div className="name-suggestions">
                     <span>Gợi ý:</span>
@@ -377,14 +455,14 @@ export function GameFormModal({
                     <button
                       type="button"
                       className={mode === 'file' ? 'active' : ''}
-                      onClick={() => setMode('file')}
+                      onClick={() => changeMode('file')}
                     >
                       File trên máy
                     </button>
                     <button
                       type="button"
                       className={mode === 'steam' ? 'active' : ''}
-                      onClick={() => setMode('steam')}
+                      onClick={() => changeMode('steam')}
                     >
                       Steam
                     </button>
@@ -403,32 +481,57 @@ export function GameFormModal({
                   </div>
                 ) : (
                   <>
-                    <input
-                      className="input"
-                      placeholder="Để trống để tự tìm theo tên game, hoặc nhập App ID (vd: 730)"
-                      value={steamInput}
-                      onChange={(e) => setSteamInput(e.target.value)}
-                    />
-                    {lookup?.status === 'searching' && (
+                    <div className="file-picker">
+                      <span className={`file-path ${steamAppId ? '' : 'placeholder'}`}>
+                        {steamAppId
+                          ? `Steam App ID ${steamAppId}`
+                          : 'App ID được lấy khi bạn chọn tên game từ gợi ý'}
+                      </span>
+                      {/* Đổi game = chọn lại tên game trong danh sách gợi ý */}
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        onClick={() => {
+                          const input = document.getElementById('game-title')
+                          if (input instanceof HTMLInputElement) {
+                            input.focus()
+                            input.select()
+                          }
+                        }}
+                      >
+                        <SearchIcon width={16} height={16} />
+                        {steamAppId ? 'Đổi game' : 'Chọn game'}
+                      </button>
+                    </div>
+                    {sgdbSteamHint?.status === 'loading' && (
+                      <span className="field-hint">Đang lấy App ID từ SteamGridDB...</span>
+                    )}
+                    {sgdbSteamHint?.status === 'found' && (
+                      <span className="field-hint steam-match">
+                        ✓ App ID của <strong>{linkedSgdb?.name}</strong> lấy từ SteamGridDB
+                      </span>
+                    )}
+                    {sgdbSteamHint?.status === 'none' && (
+                      <span className="field-hint steam-miss">
+                        SteamGridDB không ghi nhận “{linkedSgdb?.name}” trên Steam. Nếu game không
+                        bán trên Steam, hãy chọn “File trên máy”.
+                      </span>
+                    )}
+                    {/* Lấy App ID từ SteamGridDB thì không cần gợi ý tìm trên Steam bên dưới */}
+                    {!sgdbSteamHint && lookup?.status === 'searching' && (
                       <span className="field-hint">Đang tìm “{lookup.title}” trên Steam...</span>
                     )}
-                    {lookup?.status === 'found' && (
+                    {!sgdbSteamHint && lookup?.status === 'found' && (
                       <span className="field-hint steam-match">
                         ✓ Tự nhận diện: <strong>{lookup.match.name}</strong> · App ID{' '}
                         {lookup.match.appId}
                         {lookup.match.installed && ' · đã cài trên máy'}
                       </span>
                     )}
-                    {lookup?.status === 'notfound' && (
+                    {!sgdbSteamHint && lookup?.status === 'notfound' && (
                       <span className="field-hint steam-miss">
-                        Không tìm thấy “{lookup.title}” trên Steam. Kiểm tra lại tên (tên tiếng Anh
-                        trên Steam) hoặc nhập App ID.
-                      </span>
-                    )}
-                    {!lookup && (
-                      <span className="field-hint">
-                        App ID nằm trong link trang Steam của game: store.steampowered.com/app/
-                        <strong>730</strong>/...
+                        Không tìm thấy “{lookup.title}” trên Steam. Hãy chọn đúng tên game trong
+                        danh sách gợi ý.
                       </span>
                     )}
                   </>
@@ -466,8 +569,6 @@ export function GameFormModal({
                 <StarIcon width={16} height={16} />
                 {favorite ? 'Đã thêm vào yêu thích' : 'Thêm vào yêu thích'}
               </button>
-
-              {error && <p className="form-error">{error}</p>}
             </div>
 
             <div className="modal-footer">
@@ -497,6 +598,7 @@ export function GameFormModal({
             initialQuery={title}
             initialKind={coverSearchKind}
             steamAppId={steamAppId}
+            initialGame={linkedSgdb}
             onClose={closeCoverSearch}
             onSelect={(path, preview, target) => {
               applyImage(target, path, preview)

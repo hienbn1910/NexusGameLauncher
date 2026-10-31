@@ -7,11 +7,14 @@ import { fetchWithTimeout } from './network.service'
 import { setCover, type CoverKind } from './cover.service'
 import * as gameService from './game.service'
 import type { Game } from './game.service'
+import * as sgdb from './steamgriddb.service'
 
 // Tự lấy ảnh bìa từ Steam (không cần API key):
-// 1. Tìm Steam App ID: game Steam => steam_appid.txt => appmanifest trong steamapps => tìm theo tên
+// 1. Tìm Steam App ID: game Steam => steam_appid.txt => appmanifest trong steamapps
+//    => mã SteamGridDB đã chọn => tìm theo tên
 // 2. Lấy ảnh: thư mục cache của Steam trên máy => CDN của Steam
-// Game không có trên Steam thì giao diện tự dùng icon file exe.
+// 3. Ô còn trống + game đã chọn trên SteamGridDB => ảnh điểm cao nhất trên SteamGridDB
+// Không có ảnh thì giao diện tự dùng icon file exe.
 
 const CDN = 'https://cdn.cloudflare.steamstatic.com/steam/apps'
 // Chỉ tải ảnh từ máy chủ ảnh của Steam
@@ -217,6 +220,11 @@ async function findAppId(game: Game): Promise<string | null> {
     const id = (await appIdFromFile(exe)) ?? (await appIdFromManifest(exe))
     if (id) return id
   }
+  // Đã chọn game trên SteamGridDB: lấy App ID từ đó (không cần tìm trên Steam store)
+  if (game.sgdb_id && sgdb.isConfigured()) {
+    const id = await sgdb.getSteamAppId(game.sgdb_id).catch(() => null)
+    if (id) return id
+  }
   return (await findSteamApp(game.title))?.appId ?? null
 }
 
@@ -224,8 +232,8 @@ async function findAppId(game: Game): Promise<string | null> {
 
 let steamPathPromise: Promise<string | null> | null = null
 
-// Thư mục cài Steam, đọc từ registry
-function steamPath(): Promise<string | null> {
+// Thư mục cài Steam, đọc từ registry (null = máy chưa cài Steam)
+export function steamPath(): Promise<string | null> {
   steamPathPromise ??= new Promise((resolve) => {
     const fallback = 'C:\\Program Files (x86)\\Steam'
     if (process.platform !== 'win32') return resolve(null)
@@ -348,7 +356,37 @@ async function fillSlot(
 }
 
 function lookupKey(game: Game): string {
-  return [LOOKUP_VERSION, game.title, game.exe_path, game.process_name ?? ''].join('|')
+  const parts = [LOOKUP_VERSION, game.title, game.exe_path, game.process_name ?? '']
+  // Chỉ thêm khi có, để game cũ không phải tìm lại
+  if (game.sgdb_id) parts.push(`sgdb${game.sgdb_id}`)
+  return parts.join('|')
+}
+
+// Ô ảnh của launcher => loại ảnh SteamGridDB (cover dùng cho banner nên lấy ảnh banner)
+const SGDB_KIND: Record<CoverKind, sgdb.ImageKind> = {
+  poster: 'poster',
+  cover: 'hero',
+  logo: 'logo'
+}
+
+// Lấp các ô còn trống bằng ảnh SteamGridDB; trả về true nếu đã đặt ít nhất một ảnh
+async function fillFromSgdb(gameId: string, sgdbId: number): Promise<boolean> {
+  let changed = false
+  for (const kind of ['poster', 'cover', 'logo'] as CoverKind[]) {
+    if (gameService.getGameById(gameId)?.[COLUMN[kind]]) continue
+    const tmp = await sgdb.downloadTopImage(sgdbId, SGDB_KIND[kind])
+    if (!tmp) continue
+    try {
+      // Người dùng có thể vừa tự chọn ảnh trong lúc đang tải => không ghi đè
+      if (!gameService.getGameById(gameId)?.[COLUMN[kind]]) {
+        await setCover(gameId, tmp, kind)
+        changed = true
+      }
+    } finally {
+      await rm(tmp, { force: true })
+    }
+  }
+  return changed
 }
 
 function broadcastUpdated(game: Game): void {
@@ -368,29 +406,41 @@ export async function autoFetchArt(gameId: string): Promise<void> {
   if (game.art_lookup === key) return
 
   inFlight.add(gameId)
+  let changed = false
+  // Lỗi mạng ở bước nào thì không đánh dấu đã tìm, lần sau thử lại
+  let failed = false
+  let appId: string | null = null
   try {
-    const appId = await findAppId(game)
-    let changed = false
-
+    appId = await findAppId(game)
     if (appId) {
       let assetBase: Promise<string | null> | null = null
       const getAssetBase = (): Promise<string | null> =>
-        (assetBase ??= assetBaseFromDetails(appId).catch(() => null))
+        (assetBase ??= assetBaseFromDetails(appId!).catch(() => null))
 
       for (const kind of ['poster', 'cover', 'logo'] as CoverKind[]) {
         if (game[COLUMN[kind]]) continue
         if (await fillSlot(gameId, appId, kind, getAssetBase)) changed = true
       }
     }
+  } catch {
+    failed = true // Vd Steam bị chặn: vẫn thử SteamGridDB bên dưới
+  }
 
+  try {
+    if (game.sgdb_id && sgdb.isConfigured() && (await fillFromSgdb(gameId, game.sgdb_id))) {
+      changed = true
+    }
+  } catch {
+    failed = true
+  }
+
+  try {
     // Lưu cả App ID để lấy tin tức game
-    gameService.setArtLookup(gameId, key, appId)
+    if (!failed) gameService.setArtLookup(gameId, key, appId)
     const updated = gameService.getGameById(gameId)
     if (updated && (changed || updated.steam_app_id !== game.steam_app_id)) {
       broadcastUpdated(updated)
     }
-  } catch {
-    // Lỗi mạng: để lần sau thử lại
   } finally {
     inFlight.delete(gameId)
   }

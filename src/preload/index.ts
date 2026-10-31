@@ -17,6 +17,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // Lấy đường dẫn thật của file được kéo-thả (File.path đã bị bỏ trong Electron mới)
     getPathForFile: (file: File) => webUtils.getPathForFile(file),
     launch: (id: string) => ipcRenderer.invoke('games:launch', id),
+    getCatalog: () => ipcRenderer.invoke('games:getCatalog'),
+    addFromCatalog: (ids: string[]) => ipcRenderer.invoke('games:addFromCatalog', ids),
     getRunning: () => ipcRenderer.invoke('games:getRunning'),
     getStats: () => ipcRenderer.invoke('games:getStats'),
     getArtColor: (id: string) => ipcRenderer.invoke('games:getArtColor', id),
@@ -89,6 +91,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     saveApiKey: (apiKey: string) => ipcRenderer.invoke('sgdb:saveApiKey', apiKey),
     search: (term: string) => ipcRenderer.invoke('sgdb:search', term),
     getBySteamAppId: (appId: string) => ipcRenderer.invoke('sgdb:getBySteamAppId', appId),
+    getSteamAppId: (gameId: number) => ipcRenderer.invoke('sgdb:getSteamAppId', gameId),
     getImages: (gameId: number, kind: string, page: number) =>
       ipcRenderer.invoke('sgdb:getImages', gameId, kind, page),
     download: (url: string) => ipcRenderer.invoke('sgdb:download', url)

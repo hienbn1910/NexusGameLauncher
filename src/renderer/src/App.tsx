@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { GameFormModal } from './components/GameFormModal'
 import { ProfileModal } from './components/ProfileModal'
+import { StarterGamesModal } from './components/StarterGamesModal'
+import { SteamGridDbSetupModal } from './components/SteamGridDbSetupModal'
 import { WatchDirSuggestionCard } from './components/WatchDirSuggestionCard'
 import { Sidebar, type PageKey } from './components/Sidebar'
 import { StatusBar } from './components/StatusBar'
@@ -45,6 +47,13 @@ function App(): React.JSX.Element {
   const [toast, setToast] = useState<ToastMessage | null>(null)
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [editingProfile, setEditingProfile] = useState(false)
+  // Hộp thoại chọn game phổ biến (lần đầu mở app, hoặc từ màn hình thư viện trống)
+  const [starterOpen, setStarterOpen] = useState(false)
+  // Lần đầu mở app: sau bước chọn game là bước nhập SteamGridDB key (không bắt buộc)
+  const [sgdbStepPending, setSgdbStepPending] = useState(false)
+  const [sgdbSetupOpen, setSgdbSetupOpen] = useState(false)
+  // Lời nhắn ở đầu form sửa game (vd game chưa liên kết: hãy chọn file chạy)
+  const [formNotice, setFormNotice] = useState<string | null>(null)
 
   useEffect(() => {
     window.electronAPI.profile.get().then(setProfile)
@@ -121,6 +130,11 @@ function App(): React.JSX.Element {
       if (result.ok) {
         replaceGame(result.game)
         if (result.game.source === 'steam') showToast('info', `Đang mở ${game.title} qua Steam...`)
+      } else if (result.code === 'unlinked') {
+        // Game chưa có file chạy: mở form sửa game để người dùng chọn
+        setFormDelete(false)
+        setFormNotice(result.error)
+        setForm(result.game ?? game)
       } else {
         showToast('error', result.error)
       }
@@ -181,6 +195,7 @@ function App(): React.JSX.Element {
 
   const openForm = (game: Game, startWithDelete = false): void => {
     setFormDelete(startWithDelete)
+    setFormNotice(null)
     setForm(game)
   }
 
@@ -204,8 +219,30 @@ function App(): React.JSX.Element {
   const closeProfile = useCallback(() => setEditingProfile(false), [])
 
   const handleProfileSaved = (saved: UserProfile): void => {
+    // Vừa xong bước chào mừng (lưu tên hoặc bỏ qua) => gợi ý game phổ biến
+    if (profileMode === 'welcome') {
+      setStarterOpen(true)
+      setSgdbStepPending(true)
+    }
     setProfile(saved)
     setEditingProfile(false)
+  }
+
+  // Đóng hộp thoại chọn game; đang trong lần đầu mở app => sang bước SteamGridDB (nếu chưa có key)
+  const closeStarter = (): void => {
+    setStarterOpen(false)
+    if (!sgdbStepPending) return
+    setSgdbStepPending(false)
+    window.electronAPI.steamGridDb.isConfigured().then((configured) => {
+      if (!configured) setSgdbSetupOpen(true)
+    })
+  }
+
+  const handleStarterAdded = (added: Game[]): void => {
+    closeStarter()
+    if (added.length === 0) return
+    setGames((prev) => [...prev, ...added].sort(byTitle))
+    showToast('info', `Đã thêm ${added.length} game vào thư viện`)
   }
 
   // Lần đầu mở app => hỏi tên; sau đó chỉ mở khi người dùng muốn sửa hồ sơ
@@ -234,6 +271,7 @@ function App(): React.JSX.Element {
 
   const openAddForm = (): void => {
     setFormDelete(false)
+    setFormNotice(null)
     setForm('new')
   }
 
@@ -277,6 +315,7 @@ function App(): React.JSX.Element {
                 onOpenSettings={() => setPage('settings')}
                 onSelectGame={selectGame}
                 onAddGame={openAddForm}
+                onPickPopular={() => setStarterOpen(true)}
                 onEditGame={(g) => openForm(g)}
                 onToggleFavorite={toggleFavorite}
               />
@@ -337,6 +376,7 @@ function App(): React.JSX.Element {
             key={form === 'new' ? 'new' : form.id}
             game={form === 'new' ? undefined : form}
             startWithDelete={formDelete}
+            notice={formNotice ?? undefined}
             onClose={closeForm}
             onSaved={handleSaved}
             onDeleted={handleDeleted}
@@ -352,6 +392,12 @@ function App(): React.JSX.Element {
             onSaved={handleProfileSaved}
           />
         )}
+
+        {starterOpen && !profileMode && (
+          <StarterGamesModal onClose={closeStarter} onAdded={handleStarterAdded} />
+        )}
+
+        {sgdbSetupOpen && <SteamGridDbSetupModal onClose={() => setSgdbSetupOpen(false)} />}
 
         {suggestion && (
           <WatchDirSuggestionCard

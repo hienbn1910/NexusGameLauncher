@@ -13,6 +13,7 @@ import { registerNewsHandlers } from './ipc/news.ipc'
 import { registerProfileHandlers } from './ipc/profile.ipc'
 import { registerAppHandlers } from './ipc/app.ipc'
 import { startTracker } from './services/play-tracker.service'
+import { fillMissingGameExe } from './services/catalog.service'
 import { applyNetworkSettings } from './services/network.service'
 import { cleanupNewsImages } from './services/news-image.service'
 
@@ -79,6 +80,7 @@ app.whenReady().then(async () => {
   registerNewsHandlers()
   registerProfileHandlers()
   registerAppHandlers()
+  fillMissingGameExe() // Icon game thật cho game thêm từ danh mục (thay icon launcher)
   startTracker() // Theo dõi giờ chơi + tự nhận game mở ngoài Nexus
   void cleanupTempDownloads()
   void cleanupNewsImages()

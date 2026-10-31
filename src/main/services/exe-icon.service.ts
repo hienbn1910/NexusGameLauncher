@@ -113,10 +113,12 @@ async function findProcessExePaths(game: Game): Promise<string[]> {
   return paths
 }
 
-// Icon của game: ưu tiên exe tiến trình game, không có thì dùng file launcher (exe_path)
+// Icon của game: ưu tiên exe game thật (game_exe: từ danh mục hoặc tracker tự ghi khi game chạy),
+// rồi exe tiến trình cũ (process_name), không có thì dùng file launcher (exe_path)
 export async function getGameIcon(game: Game): Promise<Buffer | null> {
   const launcher = game.exe_path.trim()
   const candidates = await processExePaths(game)
+  if (game.game_exe && existsSync(game.game_exe)) candidates.unshift(game.game_exe)
   if (!/^steam:\/\//i.test(launcher) && existsSync(launcher)) candidates.push(launcher)
 
   for (const path of candidates) {
