@@ -13,13 +13,27 @@
 
 ## Tính năng
 
+### Lần đầu mở app
+1. Nhập tên hiển thị.
+2. Chọn nhanh trong **10 game phổ biến** (Liên Minh Huyền Thoại, VALORANT, CS2, Genshin Impact, Honkai: Star Rail, Zenless Zone Zero...). Game đã cài trên máy được chọn sẵn.
+3. Nhập API key [SteamGridDB](https://www.steamgriddb.com/) để có ảnh bìa đẹp hơn. Có thể bỏ qua.
+
+App tìm game đã cài **chỉ bằng cách đọc file và registry** (Riot Client, thư viện Steam, danh sách phần mềm đã cài, HoYoPlay), không quét ổ đĩa. Game chưa tìm thấy vẫn được thêm vào ở dạng "chưa liên kết": khi bấm Chơi, app tìm lại trên máy, không thấy thì mở form để chọn file game.
+
 ### Thư viện game
-- Thêm game bằng file `.exe`, shortcut hoặc Steam. Tên game được gợi ý từ thông tin file exe và tên thư mục.
+- Thêm game bằng file `.exe`, shortcut hoặc Steam.
+- **Gợi ý tên game từ SteamGridDB** ngay khi gõ. Chọn một gợi ý thì app:
+  - lấy đúng Steam App ID (với game Steam), không cần tự tra;
+  - tự tải ảnh dọc, ảnh nền và logo cho các ô ảnh còn trống;
+  - mở thẳng bước chọn ảnh khi tìm ảnh bìa online.
+- Tên game cũng được đoán từ thông tin file exe và tên thư mục.
 - Có hai kiểu xem: **lưới ảnh bìa dọc** và thẻ ngang. Kích thước ảnh chỉnh được.
-- **Ảnh bìa tự động, không cần API key:**
-  - Game Steam: tự tìm App ID (thư viện Steam trên máy trước, sau đó tới cửa hàng Steam), lấy ảnh bìa, ảnh nền và logo.
-  - Game ngoài Steam: dùng icon của file exe làm ảnh, đặt trên nền là chính icon đó phóng to và làm mờ.
-- Tìm ảnh bìa trên [SteamGridDB](https://www.steamgriddb.com/) (cần API key miễn phí), hoặc kéo-thả ảnh từ máy.
+- **Ảnh bìa tự động:**
+  - Game Steam: tự tìm App ID (thư viện Steam trên máy, SteamGridDB, rồi cửa hàng Steam), lấy ảnh bìa, ảnh nền và logo.
+  - Game đã chọn trên SteamGridDB: ô ảnh nào Steam không có (hoặc Steam bị chặn) thì lấy từ SteamGridDB.
+  - Các game còn lại: dùng icon của file exe làm ảnh, đặt trên nền là chính icon đó phóng to và làm mờ.
+- **Icon đúng của game** kể cả khi mở qua launcher chung (Riot Client, HoYoPlay): app nhớ file exe của game thật để lấy icon thay cho icon launcher.
+- Tự chọn ảnh trên SteamGridDB hoặc kéo-thả ảnh từ máy.
 
 ### Trang chi tiết game
 - **Tổng quan:** mô tả, nhà phát triển, ngày phát hành, thể loại (lấy từ Steam), thư mục cài và dung lượng.
@@ -46,8 +60,8 @@
 
 ### Khác
 - Hồ sơ người dùng: tên và ảnh đại diện (chữ cái đầu, avatar có sẵn hoặc ảnh tải lên).
-- Cài đặt mạng: DNS bảo mật (Cloudflare / Google) và proxy riêng cho app, để dùng khi Steam bị chặn.
-- Nhiều giao diện: **Tối giản** (mặc định), **Cân bằng** và **Neon** (cần mở khoá), đổi trong Cài đặt.
+- Cài đặt mạng: DNS bảo mật (mặc định **Google 8.8.8.8**, có thể đổi sang Cloudflare hoặc tắt) và proxy riêng cho app, để dùng khi Steam bị chặn.
+- Nhiều giao diện: **Tối giản** (mặc định), **Cân bằng** và **Neon** (cần mở khoá), đổi trong Cài đặt. Giao diện chỉ đổi màu, font và hình dạng (góc vát, viền), không làm xê dịch bố cục.
 - Giao diện tiếng Việt; font Chakra Petch, Exo 2, JetBrains Mono và Orbitron đóng gói kèm app nên dùng được cả khi offline.
 
 ## Yêu cầu
@@ -70,6 +84,8 @@ npm run dev
 ```
 
 Sửa code phía main process, preload hoặc cấu trúc database thì cần tắt `npm run dev` rồi chạy lại.
+
+Khi chạy bằng `npm run dev`, mọi giao diện (kể cả Neon) đều được mở khoá để kiểm tra. Bản đóng gói vẫn khoá Neon.
 
 ### Các lệnh khác
 
@@ -101,6 +117,7 @@ Hai module native (`better-sqlite3`, `koffi`) đều có sẵn bản biên dịc
 ```
 src/
 ├── main/                 # Main process (Node.js)
+│   ├── data/             # Danh mục game phổ biến (cách nhận diện từng game)
 │   ├── database/         # Kết nối SQLite + migration
 │   ├── ipc/              # Các kênh IPC cho giao diện gọi
 │   └── services/         # Logic: game, ảnh bìa, tin tức, tính giờ chơi, mạng...
