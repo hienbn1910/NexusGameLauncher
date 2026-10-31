@@ -71,7 +71,8 @@ export function GameCard({
               launch(game)
             }}
           >
-            <PlayIcon width={20} height={20} />
+            <PlayIcon width={14} height={14} />
+            {launching ? 'Đang mở...' : 'Chơi'}
           </button>
         )}
       </div>

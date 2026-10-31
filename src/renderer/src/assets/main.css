@@ -900,12 +900,21 @@ ul {
   position: absolute;
   right: 10px;
   bottom: 10px;
-  width: 38px;
-  height: 38px;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background: var(--accent);
+  height: 34px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 16px 0 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  /* Cùng kiểu nút "Chơi ngay" ở banner: màu, góc vát theo theme */
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  clip-path: var(--play-clip);
+  color: var(--btn-primary-fg);
+  background: var(--btn-primary-bg);
+  box-shadow: var(--btn-primary-glow);
   opacity: 0;
   transform: scale(0.8);
   transition:
@@ -1307,10 +1316,14 @@ ul {
   padding: 7px 0;
   border-radius: 6px;
   font-size: 13px;
+  /* Cùng kiểu nút "Chơi ngay" ở banner: màu, góc vát theo theme */
   font-weight: 700;
-  color: #fff;
-  background: var(--accent);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.45);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  clip-path: var(--play-clip);
+  color: var(--btn-primary-fg);
+  background: var(--btn-primary-bg);
+  box-shadow: var(--btn-primary-glow);
   opacity: 0;
   transform: translateY(6px);
   transition:
