@@ -189,6 +189,12 @@ declare global {
 
   type SgdbImageKind = 'poster' | 'grid' | 'hero'
 
+  // Key SteamGridDB đang dùng: của người dùng, mặc định của Nexus, hoặc chưa có
+  interface SgdbKeyStatus {
+    source: 'user' | 'default' | 'none'
+    defaultBroken: boolean // Key mặc định đã bị SteamGridDB từ chối
+  }
+
   // cover: ảnh ngang, poster: ảnh dọc 2:3
   type CoverKind = 'cover' | 'poster'
 
@@ -338,6 +344,7 @@ declare global {
     }
     steamGridDb: {
       isConfigured: () => Promise<boolean>
+      getKeyStatus: () => Promise<SgdbKeyStatus>
       saveApiKey: (apiKey: string) => Promise<ApiResult<void>>
       search: (term: string) => Promise<ApiResult<SgdbGame[]>>
       getBySteamAppId: (appId: string) => Promise<ApiResult<SgdbGame | null>>

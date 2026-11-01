@@ -1,7 +1,9 @@
 import { existsSync } from 'fs'
 import { readFile } from 'fs/promises'
 import { join } from 'path'
+import { catalogArtPath } from '../data/catalog-art'
 import { GAME_CATALOG, type CatalogGame } from '../data/game-catalog'
+import { setCover } from './cover.service'
 import * as gameService from './game.service'
 import type { Game } from './game.service'
 import { cleanPath, listInstalledApps, type InstalledApp } from './installed-apps.service'
@@ -213,18 +215,20 @@ export async function addFromCatalog(ids: string[]): Promise<Game[]> {
   for (const entry of GAME_CATALOG.filter((e) => ids.includes(e.id))) {
     if (inLibrary(entry, gameService.getAllGames())) continue
     const d = await detect(entry, apps)
-    added.push(
-      gameService.createGame({
-        title: entry.title,
-        exe_path: d.exePath,
-        genre: entry.genre,
-        watch_dirs: d.watchDirs,
-        launch_args: d.launchArgs,
-        catalog_id: entry.id,
-        steam_app_id: entry.steamAppId,
-        game_exe: gameExeOf(entry, d)
-      })
-    )
+    const game = gameService.createGame({
+      title: entry.title,
+      exe_path: d.exePath,
+      genre: entry.genre,
+      watch_dirs: d.watchDirs,
+      launch_args: d.launchArgs,
+      catalog_id: entry.id,
+      steam_app_id: entry.steamAppId,
+      game_exe: gameExeOf(entry, d)
+    })
+    // Ảnh dọc có sẵn trong app => thư viện có ảnh ngay, không cần mạng (ảnh ngang/logo tự tải sau)
+    const art = catalogArtPath(entry.id)
+    const withArt = art ? await setCover(game.id, art, 'poster').catch(() => undefined) : undefined
+    added.push(withArt ?? game)
   }
   return added
 }

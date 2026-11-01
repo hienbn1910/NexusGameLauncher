@@ -4,6 +4,10 @@ out
 .DS_Store
 .eslintcache
 *.log*
+# Key bí mật (SteamGridDB...) chèn vào lúc build, không đưa lên git
+.env
+.env.*
+!.env.example
 
 .vscode
 .git

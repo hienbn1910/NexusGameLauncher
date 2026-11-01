@@ -2070,6 +2070,17 @@ select.input option {
   color: var(--success);
 }
 
+/* Đang dùng key nào: key mặc định của Nexus / chưa có key */
+.api-key-status {
+  font-size: 13px;
+}
+.api-key-status.ok {
+  color: var(--success);
+}
+.api-key-status.warn {
+  color: #fbbf24;
+}
+
 .settings {
   display: flex;
   flex-direction: column;

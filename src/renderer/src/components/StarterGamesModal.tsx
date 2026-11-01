@@ -13,9 +13,9 @@ const STATUS_LABEL: Record<CatalogStatus, string> = {
   missing: 'Chưa tìm thấy'
 }
 
-// Ảnh dọc của game Steam (game khác dùng chữ viết tắt trên nền gradient)
-const steamPoster = (appId: string): string =>
-  `https://cdn.akamai.steamstatic.com/steam/apps/${appId}/library_600x900.jpg`
+// Ảnh dọc đóng gói sẵn trong app (resources/catalog), không cần mạng.
+// Thiếu ảnh thì dùng chữ viết tắt trên nền gradient
+const catalogPoster = (id: string): string => `game-media://catalog/${encodeURIComponent(id)}`
 
 function CatalogCard({
   item,
@@ -27,7 +27,7 @@ function CatalogCard({
   onToggle: () => void
 }): React.JSX.Element {
   const [failedArt, setFailedArt] = useState(false)
-  const art = item.steamAppId && !failedArt ? steamPoster(item.steamAppId) : null
+  const art = failedArt ? null : catalogPoster(item.id)
   const status =
     item.status === 'available' && item.via
       ? `${STATUS_LABEL.available} ${item.via}`

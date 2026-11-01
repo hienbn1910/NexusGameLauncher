@@ -43,7 +43,7 @@ export function DataSettingsCard(): React.JSX.Element {
           <strong>Xoá toàn bộ dữ liệu</strong>
           <p>
             Đưa Nexus Launcher về như mới cài: xoá thư viện game, giờ chơi, ảnh bìa, hồ sơ và mọi
-            cài đặt. File game trên máy không bị ảnh hưởng.
+            cài đặt (trừ SteamGridDB API key bạn đã nhập). File game trên máy không bị ảnh hưởng.
           </p>
         </div>
         <button className="btn btn-danger-outline btn-sm" onClick={() => setConfirming(true)}>

@@ -5,6 +5,7 @@ import { app, session, shell } from 'electron'
 import { closeDatabase, initDatabase } from '../database'
 import { runMigrations } from '../database/migrate'
 import { applyNetworkSettings } from './network.service'
+import { getSetting, setSetting } from './settings.service'
 import { invalidateTargets, resetTracker } from './play-tracker.service'
 
 // Dữ liệu người dùng của app (trong %APPDATA%\game-launcher) và reset về như mới cài.
@@ -14,6 +15,8 @@ const DB_FILES = ['games.db', 'games.db-wal', 'games.db-shm']
 const DATA_DIRS = ['covers', 'avatars', 'news-images']
 // Thư mục tạm của app (ảnh SteamGridDB đang tải...)
 const TEMP_DIRS = ['game-launcher-covers']
+// Cài đặt vẫn giữ sau khi reset: API key người dùng tự nhập
+const KEPT_SETTINGS = ['steamgriddb_api_key']
 
 export interface DataInfo {
   path: string
@@ -60,6 +63,8 @@ export async function resetAllData(): Promise<void> {
   const failed: string[] = []
 
   resetTracker() // Bỏ các phiên đang theo dõi, không ghi giờ chơi vào DB sắp xoá
+  // Giữ lại key người dùng tự nhập (vd SteamGridDB): giá trị đã mã hoá, chép nguyên sang DB mới
+  const keptSecrets = KEPT_SETTINGS.map((key) => [key, getSetting(key)] as const)
   closeDatabase()
   try {
     for (const name of DB_FILES) {
@@ -81,6 +86,7 @@ export async function resetAllData(): Promise<void> {
     // Luôn mở lại DB (kể cả khi xoá lỗi) để app vẫn chạy được
     initDatabase()
     runMigrations()
+    for (const [key, value] of keptSecrets) if (value) setSetting(key, value)
   }
   invalidateTargets()
 

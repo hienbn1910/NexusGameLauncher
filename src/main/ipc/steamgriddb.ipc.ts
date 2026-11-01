@@ -15,6 +15,8 @@ async function wrap<T>(
 
 export function registerSteamGridDbHandlers(): void {
   ipcMain.handle('sgdb:isConfigured', () => sgdb.isConfigured())
+  // Đang dùng key nào (không bao giờ trả về chính key)
+  ipcMain.handle('sgdb:getKeyStatus', () => sgdb.getKeyStatus())
 
   ipcMain.handle('sgdb:saveApiKey', (_e, apiKey: string) => wrap(() => sgdb.saveApiKey(apiKey)))
 

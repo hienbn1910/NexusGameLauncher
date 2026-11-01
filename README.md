@@ -16,7 +16,7 @@
 ### Lần đầu mở app
 1. Nhập tên hiển thị.
 2. Chọn nhanh trong **10 game phổ biến** (Liên Minh Huyền Thoại, VALORANT, CS2, Genshin Impact, Honkai: Star Rail, Zenless Zone Zero...). Game đã cài trên máy được chọn sẵn.
-3. Nhập API key [SteamGridDB](https://www.steamgriddb.com/) để có ảnh bìa đẹp hơn. Có thể bỏ qua.
+3. Nhập API key [SteamGridDB](https://www.steamgriddb.com/) riêng để có ảnh bìa đẹp hơn. Bản build có key mặc định thì không cần nhập. Có thể bỏ qua.
 
 App tìm game đã cài **chỉ bằng cách đọc file và registry** (Riot Client, thư viện Steam, danh sách phần mềm đã cài, HoYoPlay), không quét ổ đĩa. Game chưa tìm thấy vẫn được thêm vào ở dạng "chưa liên kết": khi bấm Chơi, app tìm lại trên máy, không thấy thì mở form để chọn file game.
 
@@ -79,6 +79,9 @@ Người dùng cài app **không cần cài thêm gì**: không Python, không N
 # Cài thư viện
 npm install
 
+# (Không bắt buộc) key SteamGridDB mặc định: chép .env.example thành .env rồi điền key
+cp .env.example .env
+
 # Chạy app ở chế độ phát triển (tự tải lại khi sửa giao diện)
 npm run dev
 ```
@@ -138,4 +141,6 @@ Toàn bộ dữ liệu nằm ở `%APPDATA%\game-launcher\`:
 - `avatars\`: ảnh đại diện;
 - `news-images\`: ảnh tin tức, tự xoá sau 14 ngày.
 
-API key SteamGridDB được mã hoá bằng `safeStorage` của Windows, nên copy file database sang máy khác cũng không đọc được key.
+API key SteamGridDB người dùng tự nhập được mã hoá bằng `safeStorage` của Windows, nên copy file database sang máy khác cũng không đọc được key. Key này được giữ lại khi xoá toàn bộ dữ liệu.
+
+Chưa nhập key riêng thì app dùng key mặc định chèn vào lúc build (biến `MAIN_VITE_SGDB_KEY` trong `.env`, không đưa lên git). Key mặc định dùng chung cho mọi người nên bị giới hạn 40 lượt gọi mỗi phút trên mỗi máy. Nếu SteamGridDB từ chối key này, app tự thôi dùng và nhắc người dùng nhập key riêng.

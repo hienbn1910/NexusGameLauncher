@@ -3,6 +3,7 @@ import { copyFile, readFile, rm, writeFile } from 'fs/promises'
 import { basename, extname, join } from 'path'
 import { pathToFileURL } from 'url'
 import { app, nativeImage, net, protocol } from 'electron'
+import { catalogArtPath } from '../data/catalog-art'
 import { getGameIcon } from './exe-icon.service'
 import * as gameService from './game.service'
 import type { Game } from './game.service'
@@ -44,6 +45,7 @@ async function exeIcon(gameId: string): Promise<Response> {
 // game-media://cover/<tên file>: chỉ phục vụ file nằm trong thư mục covers
 // game-media://icon/<gameId>: icon của file exe game
 // game-media://avatar/<tên file>: ảnh đại diện người dùng
+// game-media://catalog/<mã game>: ảnh dọc đóng gói sẵn của danh mục game phổ biến
 export function registerMediaProtocol(): void {
   protocol.handle(MEDIA_SCHEME, (request) => {
     const url = new URL(request.url)
@@ -52,6 +54,10 @@ export function registerMediaProtocol(): void {
     if (url.host === 'icon' && /^[\w-]+$/.test(name)) return exeIcon(name)
     if (url.host === 'news-image') return newsImageResponse(name)
     if (url.host === 'avatar') return avatarResponse(name)
+    if (url.host === 'catalog') {
+      const path = catalogArtPath(name)
+      return path ? net.fetch(pathToFileURL(path).toString()) : notFound()
+    }
     if (url.host === 'cover' && SAFE_FILE_NAME.test(name)) {
       return net.fetch(pathToFileURL(join(coversDir(), name)).toString())
     }

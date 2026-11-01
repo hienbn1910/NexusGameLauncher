@@ -1,9 +1,10 @@
+import { createHash } from 'crypto'
 import { mkdirSync } from 'fs'
 import { rm, writeFile } from 'fs/promises'
 import { join } from 'path'
 import { app, net } from 'electron'
 import { createPreview } from './cover.service'
-import { getSecret, setSecret } from './settings.service'
+import { getSecret, getSetting, setSecret, setSetting } from './settings.service'
 
 const API_BASE = 'https://www.steamgriddb.com/api/v2'
 const API_KEY_SETTING = 'steamgriddb_api_key'
@@ -37,19 +38,79 @@ interface ApiResponse<T> {
   errors?: string[]
 }
 
-async function request<T>(path: string, apiKey = getSecret(API_KEY_SETTING)): Promise<T> {
-  if (!apiKey) throw new Error('Chưa nhập SteamGridDB API key (vào Cài đặt để thêm)')
+// ---------- Key: key người dùng tự nhập > key mặc định của Nexus ----------
+
+// Key mặc định chèn vào lúc build từ .env (MAIN_VITE_SGDB_KEY), không nằm trong mã nguồn/git.
+// Chỉ main process biết key, giao diện chỉ biết đang dùng loại key nào.
+const DEFAULT_KEY = (import.meta.env?.MAIN_VITE_SGDB_KEY ?? '').trim()
+// SteamGridDB từ chối key mặc định => ghi lại dấu của key đó và thôi dùng
+// (bản phát hành sau đổi key mới thì dấu khác, tự dùng lại)
+const DEFAULT_BROKEN_SETTING = 'sgdb_default_key_broken'
+const defaultKeyMark = (): string =>
+  createHash('sha256').update(DEFAULT_KEY).digest('hex').slice(0, 16)
+
+// Key mặc định dùng chung cho mọi người dùng => giới hạn số lượt gọi trên mỗi máy
+const DEFAULT_KEY_LIMIT = 40
+const DEFAULT_KEY_WINDOW_MS = 60_000
+const defaultKeyCalls: number[] = []
+
+export type KeySource = 'user' | 'default' | 'none'
+
+export interface KeyStatus {
+  source: KeySource
+  defaultBroken: boolean // Có key mặc định nhưng SteamGridDB đã từ chối
+}
+
+function isDefaultBroken(): boolean {
+  return !!DEFAULT_KEY && getSetting(DEFAULT_BROKEN_SETTING) === defaultKeyMark()
+}
+
+function activeKey(): { key: string; source: Exclude<KeySource, 'none'> } | null {
+  const userKey = getSecret(API_KEY_SETTING)
+  if (userKey) return { key: userKey, source: 'user' }
+  if (DEFAULT_KEY && !isDefaultBroken()) return { key: DEFAULT_KEY, source: 'default' }
+  return null
+}
+
+export function getKeyStatus(): KeyStatus {
+  return { source: activeKey()?.source ?? 'none', defaultBroken: isDefaultBroken() }
+}
+
+function takeDefaultKeySlot(): void {
+  const now = Date.now()
+  while (defaultKeyCalls.length && now - defaultKeyCalls[0] > DEFAULT_KEY_WINDOW_MS) {
+    defaultKeyCalls.shift()
+  }
+  if (defaultKeyCalls.length >= DEFAULT_KEY_LIMIT) {
+    throw new Error('Đang tìm trên SteamGridDB quá nhiều, đợi khoảng một phút rồi thử lại')
+  }
+  defaultKeyCalls.push(now)
+}
+
+// apiKey = kiểm tra một key cụ thể (lúc người dùng lưu key)
+async function request<T>(path: string, apiKey?: string): Promise<T> {
+  const active = apiKey ? { key: apiKey, source: 'user' as const } : activeKey()
+  if (!active) throw new Error('Chưa có SteamGridDB API key (vào Cài đặt để thêm)')
+  if (active.source === 'default') takeDefaultKeySlot()
 
   let res: Response
   try {
     res = await net.fetch(`${API_BASE}${path}`, {
-      headers: { Authorization: `Bearer ${apiKey}` }
+      headers: { Authorization: `Bearer ${active.key}` }
     })
   } catch {
     throw new Error('Không kết nối được tới SteamGridDB, kiểm tra lại mạng')
   }
 
-  if (res.status === 401 || res.status === 403) throw new Error('SteamGridDB API key không hợp lệ')
+  if (res.status === 401 || res.status === 403) {
+    if (active.source === 'default') {
+      setSetting(DEFAULT_BROKEN_SETTING, defaultKeyMark())
+      throw new Error(
+        'Key SteamGridDB mặc định của Nexus không còn dùng được. Hãy nhập key của bạn trong Cài đặt'
+      )
+    }
+    throw new Error('SteamGridDB API key không hợp lệ')
+  }
   const json = (await res.json().catch(() => null)) as ApiResponse<T> | null
   if (res.status === 404) throw new Error('Không tìm thấy trên SteamGridDB')
   if (!res.ok || !json?.success) {
@@ -60,11 +121,12 @@ async function request<T>(path: string, apiKey = getSecret(API_KEY_SETTING)): Pr
 
 // ---------- API key ----------
 
+// Có key dùng được (của người dùng hoặc mặc định)
 export function isConfigured(): boolean {
-  return !!getSecret(API_KEY_SETTING)
+  return activeKey() !== null
 }
 
-// Kiểm tra key bằng một request thật trước khi lưu; key rỗng = xoá
+// Kiểm tra key bằng một request thật trước khi lưu; key rỗng = xoá (quay về key mặc định)
 export async function saveApiKey(apiKey: string): Promise<void> {
   const key = apiKey.trim()
   if (!key) return setSecret(API_KEY_SETTING, null)
@@ -93,27 +155,30 @@ function mapGame(g: RawGame): SgdbGame {
   }
 }
 
-// Gõ lại từ khoá cũ (xoá bớt chữ rồi gõ lại) không gọi API lần nữa
-const searchCache = new Map<string, SgdbGame[]>()
-const SEARCH_CACHE_MAX = 100
+// Kết quả API giữ trong bộ nhớ: gõ lại từ khoá cũ, mở lại hộp tìm ảnh... không gọi API lần nữa
+// (bớt lượt gọi, nhất là với key mặc định dùng chung)
+const apiCache = new Map<string, unknown>()
+const API_CACHE_MAX = 300
+
+async function cachedRequest<T>(path: string): Promise<T> {
+  if (apiCache.has(path)) return apiCache.get(path) as T
+  const data = await request<T>(path)
+  if (apiCache.size >= API_CACHE_MAX) apiCache.clear()
+  apiCache.set(path, data)
+  return data
+}
 
 export async function searchGames(term: string): Promise<SgdbGame[]> {
-  const q = term.trim()
+  const q = term.trim().toLowerCase()
   if (!q) return []
-  const cacheKey = q.toLowerCase()
-  const cached = searchCache.get(cacheKey)
-  if (cached) return cached
-  const data = await request<RawGame[]>(`/search/autocomplete/${encodeURIComponent(q)}`)
-  const games = data.map(mapGame)
-  if (searchCache.size >= SEARCH_CACHE_MAX) searchCache.clear()
-  searchCache.set(cacheKey, games)
-  return games
+  const data = await cachedRequest<RawGame[]>(`/search/autocomplete/${encodeURIComponent(q)}`)
+  return data.map(mapGame)
 }
 
 // Steam App ID của game trên SteamGridDB; null = game không có trên Steam
 export async function getSteamAppId(gameId: number): Promise<string | null> {
   if (!Number.isInteger(gameId) || gameId <= 0) return null
-  const data = await request<RawGame>(`/games/id/${gameId}?platformdata=steam`)
+  const data = await cachedRequest<RawGame>(`/games/id/${gameId}?platformdata=steam`)
   const id = data.external_platform_data?.steam?.[0]?.id
   return id && /^\d+$/.test(id) ? id : null
 }
@@ -121,7 +186,7 @@ export async function getSteamAppId(gameId: number): Promise<string | null> {
 export async function getGameBySteamAppId(appId: string): Promise<SgdbGame | null> {
   if (!/^\d+$/.test(appId)) return null
   try {
-    return mapGame(await request<RawGame>(`/games/steam/${appId}`))
+    return mapGame(await cachedRequest<RawGame>(`/games/steam/${appId}`))
   } catch {
     return null // App ID không có trên SteamGridDB
   }
@@ -156,7 +221,7 @@ export async function getImages(gameId: number, kind: ImageKind, page = 0): Prom
 
   let data: RawImage[]
   try {
-    data = await request<RawImage[]>(path)
+    data = await cachedRequest<RawImage[]>(path)
   } catch (err) {
     // Game chưa có ảnh loại này
     if (err instanceof Error && err.message.startsWith('Không tìm thấy')) return []

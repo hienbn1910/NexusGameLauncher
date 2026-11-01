@@ -228,14 +228,13 @@ function App(): React.JSX.Element {
     setEditingProfile(false)
   }
 
-  // Đóng hộp thoại chọn game; đang trong lần đầu mở app => sang bước SteamGridDB (nếu chưa có key)
+  // Đóng hộp thoại chọn game; đang trong lần đầu mở app => sang bước SteamGridDB.
+  // Luôn hiện (kể cả khi đã có key mặc định) để người dùng biết và nhập key riêng nếu muốn
   const closeStarter = (): void => {
     setStarterOpen(false)
     if (!sgdbStepPending) return
     setSgdbStepPending(false)
-    window.electronAPI.steamGridDb.isConfigured().then((configured) => {
-      if (!configured) setSgdbSetupOpen(true)
-    })
+    setSgdbSetupOpen(true)
   }
 
   const handleStarterAdded = (added: Game[]): void => {

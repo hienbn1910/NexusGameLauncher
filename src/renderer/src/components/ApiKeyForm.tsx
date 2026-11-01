@@ -7,16 +7,19 @@ interface ApiKeyFormProps {
   onSaved?: () => void
 }
 
-// Nhập / xoá SteamGridDB API key. Key được kiểm tra với server trước khi lưu.
+// Nhập / xoá SteamGridDB API key riêng. Key được kiểm tra với server trước khi lưu.
+// Chưa nhập key riêng thì app dùng key mặc định của Nexus (nếu bản build có).
 export function ApiKeyForm({ onSaved }: ApiKeyFormProps): React.JSX.Element {
-  const [configured, setConfigured] = useState<boolean | null>(null)
+  const [status, setStatus] = useState<SgdbKeyStatus | null>(null)
   const [apiKey, setApiKey] = useState('')
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<{ type: 'error' | 'success'; text: string } | null>(null)
 
   useEffect(() => {
-    window.electronAPI.steamGridDb.isConfigured().then(setConfigured)
+    window.electronAPI.steamGridDb.getKeyStatus().then(setStatus)
   }, [])
+
+  const hasUserKey = status?.source === 'user'
 
   const save = async (value: string): Promise<void> => {
     setSaving(true)
@@ -26,13 +29,22 @@ export function ApiKeyForm({ onSaved }: ApiKeyFormProps): React.JSX.Element {
 
     if (!result.ok) return setMessage({ type: 'error', text: result.error })
     setApiKey('')
-    setConfigured(!!value.trim())
+    setStatus(await window.electronAPI.steamGridDb.getKeyStatus())
     setMessage({ type: 'success', text: value.trim() ? 'Đã lưu API key' : 'Đã xoá API key' })
     if (value.trim()) onSaved?.()
   }
 
   return (
     <div className="api-key-form">
+      {status && !hasUserKey && (
+        <p className={`api-key-status ${status.source === 'default' ? 'ok' : 'warn'}`}>
+          {status.source === 'default'
+            ? '✓ Đang dùng key mặc định của Nexus, không cần nhập gì thêm. Bạn vẫn có thể nhập key riêng.'
+            : status.defaultBroken
+              ? 'Key mặc định của Nexus không còn dùng được. Hãy nhập key của bạn để tiếp tục tìm ảnh online.'
+              : 'Chưa có API key. Nhập key để tìm ảnh bìa online.'}
+        </p>
+      )}
       <p className="api-key-desc">
         Tạo API key miễn phí tại{' '}
         <a href={API_KEY_PAGE} target="_blank" rel="noreferrer">
@@ -46,7 +58,7 @@ export function ApiKeyForm({ onSaved }: ApiKeyFormProps): React.JSX.Element {
           className="input"
           type="password"
           placeholder={
-            configured ? '•••••••••••• (đã lưu, nhập key mới để thay)' : 'Dán API key...'
+            hasUserKey ? '•••••••••••• (đã lưu, nhập key mới để thay)' : 'Dán API key của bạn...'
           }
           value={apiKey}
           onChange={(e) => setApiKey(e.target.value)}
@@ -66,13 +78,13 @@ export function ApiKeyForm({ onSaved }: ApiKeyFormProps): React.JSX.Element {
           <SaveIcon width={16} height={16} />
           {saving ? 'Đang kiểm tra...' : 'Lưu'}
         </button>
-        {configured && (
+        {hasUserKey && (
           <button
             type="button"
             className="btn btn-danger-ghost btn-sm"
             disabled={saving}
             onClick={() => save('')}
-            title="Xoá API key"
+            title="Xoá key của bạn (quay về key mặc định nếu có)"
           >
             <TrashIcon width={16} height={16} />
           </button>

@@ -88,6 +88,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   steamGridDb: {
     isConfigured: () => ipcRenderer.invoke('sgdb:isConfigured'),
+    getKeyStatus: () => ipcRenderer.invoke('sgdb:getKeyStatus'),
     saveApiKey: (apiKey: string) => ipcRenderer.invoke('sgdb:saveApiKey', apiKey),
     search: (term: string) => ipcRenderer.invoke('sgdb:search', term),
     getBySteamAppId: (appId: string) => ipcRenderer.invoke('sgdb:getBySteamAppId', appId),
