@@ -18,7 +18,6 @@ import { withViewTransition } from './utils/viewTransition'
 const PAGE_TITLES: Record<PageKey, string> = {
   home: 'Trang chủ',
   catalogue: 'Kho game',
-  shop: 'Cửa hàng',
   settings: 'Cài đặt',
   game: 'Chi tiết game'
 }
@@ -353,12 +352,6 @@ function App(): React.JSX.Element {
             )}
             {page === 'settings' && (
               <SettingsPage profile={profile} onEditProfile={() => setEditingProfile(true)} />
-            )}
-            {page === 'shop' && (
-              <div className="empty-state">
-                <h2>{PAGE_TITLES[page]}</h2>
-                <p>Hiện tại vẫn đang phát triển. Hãy chờ đợi bản cập nhật tiếp theo!</p>
-              </div>
             )}
           </div>
         </main>

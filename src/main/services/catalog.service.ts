@@ -1,9 +1,9 @@
 import { existsSync } from 'fs'
 import { readFile } from 'fs/promises'
 import { join } from 'path'
-import { catalogArtPath } from '../data/catalog-art'
+import { catalogArtPath, catalogHeroPath, catalogLogoPath } from '../data/catalog-art'
 import { GAME_CATALOG, type CatalogGame } from '../data/game-catalog'
-import { setCover } from './cover.service'
+import { setCover, type CoverKind } from './cover.service'
 import * as gameService from './game.service'
 import type { Game } from './game.service'
 import { cleanPath, listInstalledApps, type InstalledApp } from './installed-apps.service'
@@ -178,6 +178,37 @@ export function fillMissingGameExe(): void {
   }
 }
 
+// Ảnh đóng gói sẵn cho từng ô ảnh của game trong danh mục
+const CATALOG_ART: {
+  kind: CoverKind
+  column: gameService.ImageColumn
+  path: (id: string) => string | null
+}[] = [
+  { kind: 'poster', column: 'poster_path', path: catalogArtPath },
+  { kind: 'cover', column: 'cover_path', path: catalogHeroPath },
+  { kind: 'logo', column: 'logo_path', path: catalogLogoPath }
+]
+
+// Điền ảnh dọc, ảnh nền banner và logo đóng gói sẵn vào các ô còn trống
+// (không ghi đè ảnh người dùng tự chọn hoặc ảnh đã tải được). Trả về game sau khi cập nhật
+async function applyCatalogArt(game: Game): Promise<Game | undefined> {
+  if (!game.catalog_id) return undefined
+  let updated: Game | undefined
+  for (const { kind, column, path } of CATALOG_ART) {
+    const current = updated ?? game
+    const file = path(game.catalog_id)
+    if (current[column] || !file) continue
+    updated = (await setCover(game.id, file, kind).catch(() => undefined)) ?? updated
+  }
+  return updated
+}
+
+// Mở app: game trong danh mục (kể cả thêm trước khi có ảnh nền / logo đóng gói sẵn) còn thiếu ảnh
+// thì điền từ ảnh có sẵn trong app, để banner luôn có ảnh dù mạng chặn Steam
+export async function fillMissingCatalogArt(): Promise<void> {
+  for (const game of gameService.getAllGames()) await applyCatalogArt(game)
+}
+
 const normalize = (title: string): string => title.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '')
 
 function inLibrary(entry: CatalogGame, games: Game[]): boolean {
@@ -225,10 +256,8 @@ export async function addFromCatalog(ids: string[]): Promise<Game[]> {
       steam_app_id: entry.steamAppId,
       game_exe: gameExeOf(entry, d)
     })
-    // Ảnh dọc có sẵn trong app => thư viện có ảnh ngay, không cần mạng (ảnh ngang/logo tự tải sau)
-    const art = catalogArtPath(entry.id)
-    const withArt = art ? await setCover(game.id, art, 'poster').catch(() => undefined) : undefined
-    added.push(withArt ?? game)
+    // Ảnh có sẵn trong app => thư viện và banner có ảnh ngay, không cần mạng
+    added.push((await applyCatalogArt(game)) ?? game)
   }
   return added
 }

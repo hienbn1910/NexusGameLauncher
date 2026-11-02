@@ -59,6 +59,8 @@ App tìm game đã cài **chỉ bằng cách đọc file và registry** (Riot Cl
 - Theo dõi tin tức cả những game không có trong thư viện.
 
 ### Khác
+- **Chạy nền ở khay hệ thống:** đóng cửa sổ vẫn tiếp tục tính giờ chơi; có thể bật khởi động cùng Windows. Thoát hẳn từ biểu tượng ở khay.
+- **Tự cập nhật** từ GitHub Releases: tải bản mới ở nền, hỏi trước khi khởi động lại để cài.
 - Hồ sơ người dùng: tên và ảnh đại diện (chữ cái đầu, avatar có sẵn hoặc ảnh tải lên).
 - Cài đặt mạng: DNS bảo mật (mặc định **Google 8.8.8.8**, có thể đổi sang Cloudflare hoặc tắt) và proxy riêng cho app, để dùng khi Steam bị chặn.
 - Nhiều giao diện: **Tối giản** (mặc định), **Cân bằng** và **Neon** (cần mở khoá), đổi trong Cài đặt. Giao diện chỉ đổi màu, font và hình dạng (góc vát, viền), không làm xê dịch bố cục.
@@ -100,6 +102,16 @@ Khi chạy bằng `npm run dev`, mọi giao diện (kể cả Neon) đều đư�
 | `npm run build` | Typecheck + build vào thư mục `out/` |
 | `npm run build:unpack` | Build bản chạy được không cần cài, vào `dist/win-unpacked/` |
 | `npm run build:win` | Build file cài đặt Windows, vào `dist/` |
+
+### Phát hành bản mới
+
+1. Tăng `version` trong `package.json` (vd `0.9.0` → `0.9.1`).
+2. Có file `.env` chứa key SteamGridDB mặc định, rồi chạy `npm run build:win`.
+3. Tạo một Release trên GitHub (tag `v0.9.1`) và đính kèm 3 file trong `dist/`: file `…-setup.exe`, file `…-setup.exe.blockmap` và `latest.yml`.
+
+Bản đã cài sẽ tự thấy bản mới, tải ở nền và hỏi người dùng khởi động lại để cập nhật.
+
+Bản cài chưa được ký số nên Windows SmartScreen sẽ cảnh báo lần đầu chạy ("Windows protected your PC"): bấm **More info → Run anyway**.
 
 Hai module native (`better-sqlite3`, `koffi`) đều có sẵn bản biên dịch cho Windows, nên **không cần Python hay Visual Studio Build Tools** để cài hay build.
 
@@ -144,3 +156,12 @@ Toàn bộ dữ liệu nằm ở `%APPDATA%\game-launcher\`:
 API key SteamGridDB người dùng tự nhập được mã hoá bằng `safeStorage` của Windows, nên copy file database sang máy khác cũng không đọc được key. Key này được giữ lại khi xoá toàn bộ dữ liệu.
 
 Chưa nhập key riêng thì app dùng key mặc định chèn vào lúc build (biến `MAIN_VITE_SGDB_KEY` trong `.env`, không đưa lên git). Key mặc định dùng chung cho mọi người nên bị giới hạn 40 lượt gọi mỗi phút trên mỗi máy. Nếu SteamGridDB từ chối key này, app tự thôi dùng và nhắc người dùng nhập key riêng.
+
+## Giấy phép
+
+Mã nguồn phát hành theo giấy phép [MIT](LICENSE).
+
+Giấy phép MIT không áp dụng cho nội dung của bên thứ ba đi kèm:
+- Ảnh bìa trong `resources/catalog/` thuộc bản quyền của các nhà phát hành game tương ứng, chỉ dùng để nhận diện game trong app.
+- Font Chakra Petch, Exo 2, JetBrains Mono và Orbitron dùng giấy phép [SIL Open Font License](https://openfontlicense.org/).
+- Tên và logo game, Steam, SteamGridDB, Riot Games, HoYoverse… thuộc về chủ sở hữu tương ứng. Nexus Launcher không liên kết với các công ty này.

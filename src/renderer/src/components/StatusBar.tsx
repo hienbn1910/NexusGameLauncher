@@ -1,3 +1,5 @@
+import { useUpdateStatus } from '../hooks/useUpdateStatus'
+
 interface StatusBarProps {
   gameCount: number
   playingTitles: string[] // Game thật đang chạy (đang đếm giờ)
@@ -9,6 +11,7 @@ export function StatusBar({
   playingTitles,
   openTitles
 }: StatusBarProps): React.JSX.Element {
+  const update = useUpdateStatus()
   const idle = playingTitles.length === 0 && openTitles.length === 0
   return (
     <footer className="statusbar">
@@ -25,7 +28,25 @@ export function StatusBar({
           </span>
         )}
       </span>
-      <span>{gameCount} game · v1.0.0</span>
+      <span className="statusbar-right">
+        {update?.state === 'ready' && (
+          <button
+            className="statusbar-update"
+            title="Thoát và cài bản mới, app sẽ tự mở lại"
+            onClick={() => window.electronAPI.app.installUpdate()}
+          >
+            Có bản {update.version} · Khởi động lại để cập nhật
+          </button>
+        )}
+        {update?.state === 'downloading' && (
+          <span>
+            Đang tải bản {update.version} ({update.progress ?? 0}%)
+          </span>
+        )}
+        <span>
+          {gameCount} game{update && ` · v${update.currentVersion}`}
+        </span>
+      </span>
     </footer>
   )
 }

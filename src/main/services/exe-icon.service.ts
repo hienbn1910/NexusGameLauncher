@@ -4,6 +4,7 @@ import { dirname, extname, isAbsolute, join } from 'path'
 import { app, nativeImage } from 'electron'
 import * as PELibrary from 'pe-library'
 import * as ResEdit from 'resedit'
+import { catalogIconPath } from '../data/catalog-art'
 import type { Game } from './game.service'
 import { findExeFile, parseProcessNames } from './process.service'
 
@@ -113,17 +114,24 @@ async function findProcessExePaths(game: Game): Promise<string[]> {
   return paths
 }
 
-// Icon của game: ưu tiên exe game thật (game_exe: từ danh mục hoặc tracker tự ghi khi game chạy),
-// rồi exe tiến trình cũ (process_name), không có thì dùng file launcher (exe_path)
+// Icon của game, theo thứ tự:
+// 1. exe game thật (game_exe: từ danh mục hoặc tracker tự ghi khi game chạy), exe tiến trình cũ
+//    (process_name): đúng icon của bản đang cài trên máy
+// 2. icon đóng gói sẵn của game trong danh mục (game chưa cài, hoặc chỉ có launcher chung)
+// 3. file launcher (exe_path)
 export async function getGameIcon(game: Game): Promise<Buffer | null> {
   const launcher = game.exe_path.trim()
   const candidates = await processExePaths(game)
   if (game.game_exe && existsSync(game.game_exe)) candidates.unshift(game.game_exe)
-  if (!/^steam:\/\//i.test(launcher) && existsSync(launcher)) candidates.push(launcher)
 
   for (const path of candidates) {
     const png = await iconOf(path)
     if (png) return png
   }
+
+  const bundled = game.catalog_id ? catalogIconPath(game.catalog_id) : null
+  if (bundled) return readFile(bundled).catch(() => null)
+
+  if (!/^steam:\/\//i.test(launcher) && existsSync(launcher)) return iconOf(launcher)
   return null
 }

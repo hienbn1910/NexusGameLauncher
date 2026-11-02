@@ -25,7 +25,13 @@ electronLanguages:
 win:
   executableName: Nexus Launcher
 nsis:
-  artifactName: ${name}-${version}-setup.${ext}
+  artifactName: nexus-launcher-${version}-setup.${ext}
+  # Trình cài có các bước như bình thường, cho chọn thư mục / ổ đĩa để cài.
+  # Mặc định: %LOCALAPPDATA%\Programs\Nexus Launcher (cài cho tài khoản đang dùng, không cần quyền admin;
+  # chọn thư mục cần quyền admin như Program Files thì trình cài tự xin quyền)
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
@@ -50,3 +56,10 @@ appImage:
   artifactName: ${name}-${version}.${ext}
 # Module native đều có bản biên dịch sẵn => không cần Python / Visual Studio để build
 npmRebuild: false
+# Cập nhật tự động (electron-updater): bản cài đọc latest.yml trên GitHub Releases của repo này.
+# Phát hành: tạo Release trên GitHub, đính kèm file setup .exe, .exe.blockmap và latest.yml trong dist/
+publish:
+  provider: github
+  owner: hienbn1910
+  repo: NexusGameLauncher
+  releaseType: release

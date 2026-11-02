@@ -2362,6 +2362,40 @@ select.input option {
   border-top: 1px solid var(--border);
 }
 
+.statusbar-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+}
+.update-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 62px;
+}
+.update-settings-version {
+  margin: 0;
+  font-size: 13px;
+}
+.update-settings-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* Đã tải xong bản mới: bấm để khởi động lại và cài */
+.statusbar-update {
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+}
+.statusbar-update:hover {
+  text-decoration: underline;
+}
+
 .statusbar-playing {
   display: inline-flex;
   align-items: center;
@@ -3498,6 +3532,10 @@ select.input option {
   align-items: flex-end;
   padding: 28px 32px;
   box-shadow: 0 20px 50px rgb(from var(--ambient) r g b / 0.2);
+  /* Ảnh nhỏ ở sidebar "bay" thành cả khối hero. Đặt tên ở khối hero (có overflow: hidden)
+     chứ không ở lớp ảnh bên trong: ảnh chụp của View Transition không bị khung cha cắt,
+     nền icon mờ (to 130%, blur) sẽ tràn đỏ cả trang và đè lên tên game, nút Chơi */
+  view-transition-name: game-hero-art;
 }
 .detail-hero::after {
   content: '';
@@ -3509,14 +3547,12 @@ select.input option {
     linear-gradient(90deg, rgba(0, 0, 0, 0.45) 0%, transparent 60%);
 }
 
-/* Khối ảnh nhận hiệu ứng "bay" từ ảnh nhỏ ở sidebar */
 .detail-hero-media {
   position: absolute;
   inset: 0;
   z-index: -2;
   display: grid;
   place-items: center;
-  view-transition-name: game-hero-art;
 }
 .detail-hero-cover {
   width: 100%;

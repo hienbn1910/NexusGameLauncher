@@ -13,15 +13,23 @@ import { registerNewsHandlers } from './ipc/news.ipc'
 import { registerProfileHandlers } from './ipc/profile.ipc'
 import { registerAppHandlers } from './ipc/app.ipc'
 import { startTracker } from './services/play-tracker.service'
-import { fillMissingGameExe } from './services/catalog.service'
+import { fillMissingCatalogArt, fillMissingGameExe } from './services/catalog.service'
 import { applyNetworkSettings } from './services/network.service'
 import { cleanupNewsImages } from './services/news-image.service'
+import { setupTray, showMainWindow, startedHidden } from './services/tray.service'
+import { startAutoUpdate } from './services/updater.service'
 
 const APP_NAME = 'Nexus Launcher'
 
 // Giữ thư mục dữ liệu cũ (%APPDATA%\game-launcher) để không mất database và ảnh bìa khi đổi tên app
 app.setPath('userData', join(app.getPath('appData'), 'game-launcher'))
 app.setName(APP_NAME)
+
+// Chỉ chạy một bản: hai bản cùng chạy sẽ cùng tính giờ chơi (cộng đôi) và cùng ghi một database.
+// Mở app lần nữa => hiện cửa sổ của bản đang chạy
+const isPrimaryInstance = app.requestSingleInstanceLock()
+if (!isPrimaryInstance) app.quit()
+else app.on('second-instance', () => showMainWindow())
 
 // Scheme game-media:// (ảnh bìa) phải đăng ký trước khi app ready
 registerMediaScheme()
@@ -44,9 +52,11 @@ function createWindow(): void {
     }
   })
 
+  // Mở cùng Windows (--hidden): chạy ẩn ở khay, chỉ theo dõi giờ chơi
   mainWindow.on('ready-to-show', () => {
-    mainWindow.show()
+    if (!startedHidden()) mainWindow.show()
   })
+  setupTray(mainWindow, icon)
 
   // Giao diện đã sẵn sàng nhận sự kiện: tự tìm ảnh Steam cho game còn thiếu ảnh
   mainWindow.webContents.once('did-finish-load', () => {
@@ -71,7 +81,7 @@ function createWindow(): void {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(async () => {
-  // Set app user model id for windows
+  if (!isPrimaryInstance) return // Đang thoát vì đã có bản khác chạy
   initDatabase()
   runMigrations()
   registerGameHandlers()
@@ -81,6 +91,8 @@ app.whenReady().then(async () => {
   registerProfileHandlers()
   registerAppHandlers()
   fillMissingGameExe() // Icon game thật cho game thêm từ danh mục (thay icon launcher)
+  // Ảnh dọc / nền banner / logo đóng gói sẵn cho game trong danh mục còn thiếu ảnh
+  await fillMissingCatalogArt().catch(() => undefined)
   startTracker() // Theo dõi giờ chơi + tự nhận game mở ngoài Nexus
   void cleanupTempDownloads()
   void cleanupNewsImages()
@@ -100,6 +112,7 @@ app.whenReady().then(async () => {
   ipcMain.on('ping', () => console.log('pong'))
 
   createWindow()
+  startAutoUpdate() // Chỉ chạy ở bản cài đặt
 
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the

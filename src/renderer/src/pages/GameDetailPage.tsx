@@ -161,7 +161,7 @@ export function GameDetailPage({
       <div className="home-ambient" aria-hidden />
 
       <section className="detail-hero" style={{ background: gameGradient(game.title) }}>
-        {/* Khối ảnh có view-transition-name: ảnh nhỏ ở sidebar "bay" thành ảnh lớn */}
+        {/* Khối hero có view-transition-name: ảnh nhỏ ở sidebar "bay" thành hero */}
         <div className="detail-hero-media">
           {cover ? (
             <img key={cover} className="detail-hero-cover" src={cover} alt="" draggable={false} />

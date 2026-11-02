@@ -12,7 +12,6 @@ import {
   PlayIcon,
   PlusIcon,
   StarIcon,
-  StoreIcon,
   TrashIcon,
   type IconComponent
 } from './Icons'
@@ -22,14 +21,17 @@ import { DEFAULT_PROFILE_NAME } from '../utils/avatar'
 import { runningLabel } from '../utils/gameArt'
 
 // 'game' = trang chi tiết game (không có trong menu điều hướng)
-export type PageKey = 'home' | 'catalogue' | 'shop' | 'settings' | 'game'
+// Trang Cửa hàng chưa làm nên chưa hiện (StoreIcon để sẵn trong Icons.tsx)
+export type PageKey = 'home' | 'catalogue' | 'settings' | 'game'
 
 const NAV_ITEMS: { key: PageKey; label: string; icon: IconComponent }[] = [
   { key: 'home', label: 'Trang chủ', icon: HomeIcon },
   { key: 'catalogue', label: 'Kho game', icon: GridIcon },
-  { key: 'shop', label: 'Cửa hàng', icon: StoreIcon },
   { key: 'settings', label: 'Cài đặt', icon: GearIcon }
 ]
+
+// Trợ giúp: hướng dẫn và báo lỗi trên GitHub
+const HELP_URL = 'https://github.com/hienbn1910/NexusGameLauncher#readme'
 
 interface SidebarProps {
   page: PageKey
@@ -200,7 +202,12 @@ export function Sidebar({
         </ul>
       </div>
 
-      <button className="sidebar-help">
+      <button
+        className="sidebar-help"
+        title="Hướng dẫn và báo lỗi trên GitHub"
+        // Link ngoài được main mở bằng trình duyệt (setWindowOpenHandler)
+        onClick={() => window.open(HELP_URL)}
+      >
         <HelpIcon />
         <span>Trợ giúp</span>
       </button>

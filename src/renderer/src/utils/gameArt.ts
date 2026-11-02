@@ -40,14 +40,15 @@ export function logoUrl(game: Pick<Game, 'logo_path'>): string | null {
   return mediaUrl(game.logo_path)
 }
 
-// Icon của game: lấy từ exe tiến trình game, không có thì từ file launcher.
-// null với game Steam (không có file exe để đọc icon).
+// Icon của game: lấy từ exe game thật, rồi icon đóng gói sẵn (game trong danh mục), rồi file launcher.
+// null với game Steam / chưa liên kết tự thêm (không có file exe để đọc icon).
 // Thêm đường dẫn + tên tiến trình vào query để icon tự cập nhật khi đổi một trong hai
 export function iconUrl(
-  game: Pick<Game, 'id' | 'exe_path' | 'process_name' | 'game_exe'>
+  game: Pick<Game, 'id' | 'exe_path' | 'process_name' | 'game_exe' | 'catalog_id'>
 ): string | null {
   const path = game.exe_path.trim()
-  if (!path || /^steam:\/\//i.test(path)) return null // Chưa liên kết / game Steam
+  // Game trong danh mục luôn có icon đóng gói sẵn, kể cả khi chưa liên kết hoặc mở qua Steam
+  if (!game.catalog_id && (!path || /^steam:\/\//i.test(path))) return null
   const version = `${game.exe_path}|${game.process_name ?? ''}|${game.game_exe ?? ''}`
   return `game-media://icon/${game.id}?v=${encodeURIComponent(version)}`
 }

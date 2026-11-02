@@ -3,8 +3,10 @@ import { AppearanceSettingsCard } from '../components/AppearanceSettingsCard'
 import { Avatar } from '../components/Avatar'
 import { DataSettingsCard } from '../components/DataSettingsCard'
 import { TrackingSettingsCard } from '../components/TrackingSettingsCard'
+import { UpdateSettingsCard } from '../components/UpdateSettingsCard'
 import {
   ClockIcon,
+  DownloadIcon,
   FolderIcon,
   GlobeIcon,
   ImageIcon,
@@ -122,6 +124,14 @@ export function SettingsPage({ profile, onEditProfile }: SettingsPageProps): Rea
         description="Thư viện game, giờ chơi, ảnh bìa và cài đặt của Nexus được lưu trên máy này."
       >
         <DataSettingsCard />
+      </SettingsCard>
+
+      <SettingsCard
+        icon={DownloadIcon}
+        title="Phiên bản"
+        description="Nexus tự tải bản mới ở nền và hỏi trước khi cài."
+      >
+        <UpdateSettingsCard />
       </SettingsCard>
     </div>
   )

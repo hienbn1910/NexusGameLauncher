@@ -261,6 +261,22 @@ declare global {
     unlocked: ThemeId[] // Các theme dùng được
   }
 
+  // Cập nhật tự động từ GitHub Releases (bản dev: disabled)
+  interface UpdateStatus {
+    currentVersion: string
+    state: 'disabled' | 'idle' | 'checking' | 'downloading' | 'ready' | 'latest' | 'error'
+    version: string | null // Phiên bản mới
+    progress: number | null // % đã tải
+    error: string | null
+  }
+
+  // Chạy nền ở khay hệ thống
+  interface BackgroundSettings {
+    closeToTray: boolean // Đóng cửa sổ => ẩn xuống khay, vẫn tính giờ chơi
+    openAtLogin: boolean // Khởi động cùng Windows (chạy ẩn)
+    canAutoStart: boolean // Chỉ bản cài đặt mới bật được
+  }
+
   // Dữ liệu người dùng của app (%APPDATA%\game-launcher)
   interface DataInfo {
     path: string
@@ -336,6 +352,14 @@ declare global {
       getAppearance: () => Promise<Appearance>
       // Lỗi nếu theme chưa mở khoá
       setTheme: (theme: ThemeId) => Promise<ApiResult<Appearance>>
+      getBackgroundSettings: () => Promise<BackgroundSettings>
+      setCloseToTray: (enabled: boolean) => Promise<BackgroundSettings>
+      // Lỗi nếu chạy bản dev
+      setOpenAtLogin: (enabled: boolean) => Promise<ApiResult<BackgroundSettings>>
+      getUpdateStatus: () => Promise<UpdateStatus>
+      checkForUpdates: () => Promise<UpdateStatus>
+      installUpdate: () => Promise<void>
+      onUpdateStatus: (callback: (status: UpdateStatus) => void) => () => void
     }
     network: {
       getSettings: () => Promise<NetworkSettings>

@@ -79,7 +79,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
     openDataFolder: () => ipcRenderer.invoke('app:openDataFolder'),
     resetData: () => ipcRenderer.invoke('app:resetData'),
     getAppearance: () => ipcRenderer.invoke('app:getAppearance'),
-    setTheme: (theme: string) => ipcRenderer.invoke('app:setTheme', theme)
+    setTheme: (theme: string) => ipcRenderer.invoke('app:setTheme', theme),
+    getBackgroundSettings: () => ipcRenderer.invoke('app:getBackgroundSettings'),
+    setCloseToTray: (enabled: boolean) => ipcRenderer.invoke('app:setCloseToTray', enabled),
+    setOpenAtLogin: (enabled: boolean) => ipcRenderer.invoke('app:setOpenAtLogin', enabled),
+    getUpdateStatus: () => ipcRenderer.invoke('app:getUpdateStatus'),
+    checkForUpdates: () => ipcRenderer.invoke('app:checkForUpdates'),
+    installUpdate: () => ipcRenderer.invoke('app:installUpdate'),
+    // Trạng thái cập nhật thay đổi (đang tải, đã tải xong...), trả về hàm huỷ đăng ký
+    onUpdateStatus: (callback: (status: unknown) => void) => {
+      const listener = (_e: IpcRendererEvent, payload: unknown): void => callback(payload)
+      ipcRenderer.on('app:updateStatus', listener)
+      return () => ipcRenderer.removeListener('app:updateStatus', listener)
+    }
   },
   network: {
     getSettings: () => ipcRenderer.invoke('network:getSettings'),

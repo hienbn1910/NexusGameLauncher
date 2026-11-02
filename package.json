@@ -1,10 +1,15 @@
 {
   "name": "game-launcher",
-  "version": "1.0.0",
+  "version": "0.9.0",
   "description": "Nexus Launcher - quản lý và chơi game trên PC",
   "main": "./out/main/index.js",
-  "author": "example.com",
-  "homepage": "https://electron-vite.org",
+  "author": "Aeri",
+  "license": "MIT",
+  "homepage": "https://github.com/hienbn1910/NexusGameLauncher",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hienbn1910/NexusGameLauncher.git"
+  },
   "scripts": {
     "format": "prettier --write .",
     "lint": "eslint --cache .",
@@ -23,6 +28,7 @@
   "dependencies": {
     "@electron-toolkit/utils": "^4.0.0",
     "better-sqlite3": "^13.0.3",
+    "electron-updater": "^6.8.11",
     "fast-xml-parser": "^5.11.2",
     "koffi": "^3.3.5"
   },
